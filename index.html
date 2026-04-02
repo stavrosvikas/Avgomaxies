@@ -13,23 +13,76 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;touch-action:no
 body{display:flex;align-items:center;justify-content:center;}
 #gc{display:block;touch-action:none;}
 
-/* Control overlay — sized & positioned by JS to match canvas exactly */
-#mc{position:fixed;pointer-events:none;display:none;z-index:10;}
-.cb{
-  position:absolute;width:70px;height:70px;
-  background:rgba(255,255,255,0.10);
-  border:2px solid rgba(255,255,255,0.25);
-  border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-size:26px;color:rgba(255,255,255,0.85);
-  pointer-events:all;user-select:none;-webkit-user-select:none;
-  transition:background 0.07s,transform 0.07s;cursor:pointer;
+/* ── CONTROL STRIP (mobile only, overlay at bottom) ── */
+#ctrl-strip{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;
+  background:rgba(0,0,0,0.60);
+  border-top:1.5px solid rgba(155,48,255,0.35);
+  z-index:20;touch-action:none;
+  user-select:none;-webkit-user-select:none;
 }
-.cb:active,.cb.on{background:rgba(255,210,0,0.32);border-color:rgba(255,210,0,0.6);transform:scale(0.90);}
-/* LEFT THUMB mirrors RIGHT THUMB exactly */
-#cb-u { left:3%;  bottom:22%; }
-#cb-d { left:11%; bottom:11%; }
-#cb-r { right:3%;  bottom:22%; }
-#cb-l { right:11%; bottom:11%; }
+#joy-zone{
+  position:absolute;left:0;top:0;width:50%;height:100%;overflow:hidden;
+}
+#act-zone{
+  position:absolute;right:0;top:0;width:50%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+}
+#joy-base{
+  position:absolute;border-radius:50%;
+  background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.18);
+  transform:translate(-50%,-50%);opacity:0;pointer-events:none;
+  transition:opacity 0.06s;
+}
+#joy-knob{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,0.38) 0%,rgba(255,255,255,0.16) 100%);
+  border:2.5px solid rgba(255,255,255,0.5);
+  transform:translate(-50%,-50%);opacity:0;pointer-events:none;
+  transition:opacity 0.06s;
+}
+#joy-base.vis,#joy-knob.vis{opacity:1;}
+#act-btn{
+  border-radius:50%;
+  background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.22);
+  display:flex;align-items:center;justify-content:center;
+  color:rgba(255,255,255,0.75);pointer-events:none;
+  transition:background 0.07s,border-color 0.07s,transform 0.07s;
+}
+#act-btn.pressed{
+  background:rgba(255,210,0,0.28);border-color:rgba(255,210,0,0.55);
+  transform:scale(0.92);
+}
+#act-btn.charging{
+  background:rgba(255,140,0,0.32);border-color:rgba(255,140,0,0.6);
+}
+/* ── NICK INPUT OVERLAY (mobile) ── */
+#nick-overlay{
+  display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+  z-index:200;background:rgba(0,0,0,0.72);
+  flex-direction:column;align-items:center;justify-content:center;gap:18px;
+}
+#nick-overlay.vis{display:flex;}
+#nick-overlay label{
+  font-family:'Bebas Neue',Arial;font-size:16px;letter-spacing:3px;
+  color:rgba(255,255,255,0.5);
+}
+#nick-inp{
+  font-size:28px;letter-spacing:5px;font-family:'Bebas Neue',Arial;
+  text-transform:uppercase;
+  background:rgba(16,0,34,0.95);border:2px solid rgba(155,48,255,0.65);
+  color:#FFD700;text-align:center;padding:12px 24px;border-radius:10px;
+  width:min(310px,78vw);outline:none;-webkit-appearance:none;
+}
+#nick-inp::placeholder{color:rgba(255,255,255,0.25);letter-spacing:2px;}
+#nick-ok{
+  font-family:'Bebas Neue',Arial;font-size:22px;letter-spacing:2px;
+  background:rgba(46,204,113,0.22);border:2px solid rgba(46,204,113,0.55);
+  color:#2ECC71;padding:12px 48px;border-radius:10px;
+  cursor:pointer;-webkit-appearance:none;
+}
+#nick-ok:active{background:rgba(46,204,113,0.45);}
 
 /* Back button for mobile (non-fight screens) */
 #btn-back{
@@ -70,11 +123,23 @@ body{display:flex;align-items:center;justify-content:center;}
 </head>
 <body>
 <canvas id="gc"></canvas>
-<div id="mc">
-  <div class="cb" id="cb-u">↑</div>
-  <div class="cb" id="cb-d">↓</div>
-  <div class="cb" id="cb-l">←</div>
-  <div class="cb" id="cb-r">→</div>
+<!-- Mobile control strip: joystick (left) + action button (right) -->
+<div id="ctrl-strip">
+  <div id="joy-zone">
+    <div id="joy-base"></div>
+    <div id="joy-knob"></div>
+  </div>
+  <div id="act-zone">
+    <div id="act-btn">▲</div>
+  </div>
+</div>
+<!-- Nick input overlay for mobile (replaces canvas keydown on touch) -->
+<div id="nick-overlay">
+  <label>NICKNAME</label>
+  <input id="nick-inp" type="text" maxlength="12" autocomplete="off"
+    autocorrect="off" autocapitalize="characters" spellcheck="false"
+    placeholder="ΤΟ ΟΝΟΜΑ ΣΟΥ">
+  <button id="nick-ok" onclick="confirmNickMobile()">ΑΠΟΘΗΚΕΥΣΗ</button>
 </div>
 <div id="btn-back" onclick="handleBack()">← ΠΙΣΩ</div>
 <div id="btn-mute" onclick="handleMuteClick()" title="Mute / Unmute">🔊</div>
@@ -337,17 +402,149 @@ let mpState='idle', mpErr='', _mpTimeout=null;
 const K={l:false,r:false,u:false,d:false},Kp={l:false,r:false,u:false,d:false};
 // input state (no _p2upPrev — replaced by _prevP1u/_prevP2u)
 
-function bindBtn(id,k){
-  const el=document.getElementById(id);
-  const on=()=>{K[k]=true;el.classList.add('on');};
-  const off=()=>{K[k]=false;el.classList.remove('on');};
-  el.addEventListener('touchstart',e=>{on();e.preventDefault();},{passive:false});
-  el.addEventListener('touchend',  e=>{off();e.preventDefault();},{passive:false});
-  el.addEventListener('touchcancel',e=>{off();e.preventDefault();},{passive:false});
-  el.addEventListener('mousedown',on);
-  document.addEventListener('mouseup',off);
+// ════════════════════════════════════════════════
+//  MOBILE JOYSTICK + ACTION BUTTON
+// ════════════════════════════════════════════════
+let _stripH=0; // computed strip height (px)
+const joy={active:false,bx:0,by:0,kx:0,ky:0,dx:0,dy:0};
+let _joyId=null,_actId=null;
+let _actStart=0,_actHoldT=null,_actPendingJump=false,_actCharging=false;
+const ACT_TAP_MS=180; // < this = tap (jump), >= = hold (charge)
+
+function _joyMaxR(){return Math.max(36,Math.round(_stripH*0.44));}
+
+// Position joystick base & knob HTML elements
+function _joySetPos(bx,by,kx,ky){
+  const b=document.getElementById('joy-base');
+  const k=document.getElementById('joy-knob');
+  b.style.left=bx+'px';b.style.top=by+'px';
+  k.style.left=kx+'px';k.style.top=ky+'px';
 }
-['u','d','l','r'].forEach(k=>bindBtn('cb-'+k,k));
+
+function onStripStart(e){
+  e.preventDefault(); SFX.resume();
+  const strip=document.getElementById('ctrl-strip');
+  const sr=strip.getBoundingClientRect();
+  const half=sr.width/2;
+  for(const t of e.changedTouches){
+    const tx=t.clientX-sr.left;
+    const ty=t.clientY-sr.top;
+    if(tx<half){
+      // Left half = joystick
+      if(_joyId===null){
+        _joyId=t.identifier;
+        joy.active=true;joy.bx=tx;joy.by=ty;joy.kx=tx;joy.ky=ty;joy.dx=0;joy.dy=0;
+        _joySetPos(tx,ty,tx,ty);
+        document.getElementById('joy-base').classList.add('vis');
+        document.getElementById('joy-knob').classList.add('vis');
+      }
+    }else{
+      // Right half = action button
+      if(_actId===null){
+        _actId=t.identifier;_actStart=Date.now();_actCharging=false;
+        document.getElementById('act-btn').classList.add('pressed');
+        _actHoldT=setTimeout(()=>{
+          K.d=true;_actCharging=true;
+          document.getElementById('act-btn').classList.remove('pressed');
+          document.getElementById('act-btn').classList.add('charging');
+        },ACT_TAP_MS);
+      }
+    }
+  }
+}
+function onStripMove(e){
+  e.preventDefault();
+  const strip=document.getElementById('ctrl-strip');
+  const sr=strip.getBoundingClientRect();
+  for(const t of e.changedTouches){
+    if(t.identifier===_joyId){
+      const tx=t.clientX-sr.left,ty=t.clientY-sr.top;
+      const rdx=tx-joy.bx,rdy=ty-joy.by;
+      const dist=Math.sqrt(rdx*rdx+rdy*rdy);
+      const maxR=_joyMaxR();
+      const clamped=Math.min(dist,maxR);
+      const angle=Math.atan2(rdy,rdx);
+      joy.kx=joy.bx+Math.cos(angle)*clamped;
+      joy.ky=joy.by+Math.sin(angle)*clamped;
+      joy.dx=rdx/maxR; joy.dy=rdy/maxR;
+      document.getElementById('joy-knob').style.left=joy.kx+'px';
+      document.getElementById('joy-knob').style.top=joy.ky+'px';
+    }
+  }
+}
+function onStripEnd(e){
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier===_joyId){
+      _joyId=null;joy.active=false;joy.dx=0;joy.dy=0;
+      document.getElementById('joy-base').classList.remove('vis');
+      document.getElementById('joy-knob').classList.remove('vis');
+    }
+    if(t.identifier===_actId){
+      _actId=null;clearTimeout(_actHoldT);
+      const held=Date.now()-_actStart;
+      if(held<ACT_TAP_MS){
+        _actPendingJump=true; // quick tap = jump
+      }
+      K.d=false;_actCharging=false;
+      document.getElementById('act-btn').classList.remove('pressed','charging');
+    }
+  }
+}
+
+// Apply joystick state to K — called once per frame in main loop
+// Only runs on touch devices; PC keyboard (K set via keydown) is unaffected
+function applyJoyToK(){
+  if(!isTouchDev()||scr!=='FIGHT')return;
+  K.l=joy.dx<-0.22;
+  K.r=joy.dx>0.22;
+  if(_actPendingJump){K.u=true;_actPendingJump=false;}
+  else K.u=false;
+  // K.d managed directly by actStart/End timers
+}
+
+// ── Haptic feedback ────────────────────────────
+function haptic(p){if(navigator.vibrate)navigator.vibrate(p);}
+
+// ── Web Share / copy for multiplayer link ──────
+function mpShareOrCopy(url){
+  if(navigator.share&&isTouchDev()){
+    navigator.share({title:'Egg Battle 🥚',text:'Έλα να παίξουμε!',url})
+      .then(()=>{copiedFeedback=2000;}).catch(()=>{});
+  }else{
+    navigator.clipboard.writeText(url)
+      .then(()=>{copiedFeedback=2000;}).catch(()=>{copiedFeedback=2000;});
+  }
+}
+
+// ── Mobile nick input overlay ──────────────────
+function showNickOverlay(){
+  const ov=document.getElementById('nick-overlay');
+  const inp=document.getElementById('nick-inp');
+  if(!ov||!inp)return;
+  inp.value='';ov.classList.add('vis');
+  setTimeout(()=>inp.focus(),80); // small delay for iOS keyboard
+}
+function hideNickOverlay(){
+  const ov=document.getElementById('nick-overlay');
+  if(ov)ov.classList.remove('vis');
+}
+function confirmNickMobile(){
+  const inp=document.getElementById('nick-inp');
+  if(!inp)return;
+  const v=inp.value.trim().toUpperCase().substring(0,12);
+  if(v.length>0){nickInput=v;saveNick();}
+  hideNickOverlay();
+}
+
+// Wire strip touch events
+(function(){
+  const s=document.getElementById('ctrl-strip');
+  s.addEventListener('touchstart',onStripStart,{passive:false});
+  s.addEventListener('touchmove', onStripMove, {passive:false});
+  s.addEventListener('touchend',  onStripEnd,  {passive:false});
+  s.addEventListener('touchcancel',onStripEnd, {passive:false});
+})();
 
 document.addEventListener('keydown',e=>{
   if(e.repeat)return;
@@ -403,34 +600,47 @@ const isTouchDev=()=>('ontouchstart' in window)||navigator.maxTouchPoints>0;
 const showCtrlBtns=()=>isTouchDev()||window.innerWidth<=1100;
 
 function resize(){
+  // ── Canvas scaling (unchanged for PC; strip overlays bottom on mobile) ──
   const ratio=W/H;
   let cw=window.innerWidth,ch=window.innerHeight;
   if(cw/ch>ratio)cw=ch*ratio;else ch=cw/ratio;
   canvas.width=W;canvas.height=H;
   canvas.style.width=cw+'px';canvas.style.height=ch+'px';
 
-  const mc=document.getElementById('mc');
-  const ox=Math.round((window.innerWidth-cw)/2);
-  const oy=Math.round((window.innerHeight-ch)/2);
-  mc.style.left=ox+'px'; mc.style.top=oy+'px';
-  mc.style.width=cw+'px'; mc.style.height=ch+'px';
-  mc.style.right='auto'; mc.style.bottom='auto';
+  // ── Strip height (adaptive, only on touch landscape) ──
+  const mob=isTouchDev();
+  _stripH=mob?Math.max(80,Math.min(130,Math.round(window.innerHeight*0.22))):0;
 
-  const bsz=Math.max(44,Math.min(72,Math.round(ch*0.13)));
-  document.querySelectorAll('.cb').forEach(el=>{
-    el.style.width=bsz+'px'; el.style.height=bsz+'px';
-    el.style.fontSize=Math.round(bsz*0.37)+'px';
-  });
+  // Size strip and its elements
+  const strip=document.getElementById('ctrl-strip');
+  strip.style.height=_stripH+'px';
+
+  if(mob&&_stripH>0){
+    const baseSize=Math.round(_stripH*0.82);
+    const knobSize=Math.round(_stripH*0.44);
+    const actSize=Math.min(Math.round(_stripH*0.86),88);
+    document.getElementById('joy-base').style.cssText=
+      `position:absolute;border-radius:50%;background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.18);transform:translate(-50%,-50%);opacity:0;pointer-events:none;transition:opacity 0.06s;width:${baseSize}px;height:${baseSize}px`;
+    document.getElementById('joy-knob').style.cssText=
+      `position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,0.38) 0%,rgba(255,255,255,0.16) 100%);border:2.5px solid rgba(255,255,255,0.5);transform:translate(-50%,-50%);opacity:0;pointer-events:none;transition:opacity 0.06s;width:${knobSize}px;height:${knobSize}px`;
+    const aBtn=document.getElementById('act-btn');
+    aBtn.style.width=actSize+'px';aBtn.style.height=actSize+'px';
+    aBtn.style.fontSize=Math.round(actSize*0.32)+'px';
+  }
 
   updateMobileUI();
 }
 
 function updateMobileUI(){
-  // Control buttons: ONLY during fight
-  const mc=document.getElementById('mc');
-  const showFightBtns=showCtrlBtns()&&scr==='FIGHT';
-  mc.style.display=showFightBtns?'block':'none';
+  const mob=isTouchDev();
+  const strip=document.getElementById('ctrl-strip');
+  // Strip: only during FIGHT on touch devices
+  if(strip) strip.style.display=(mob&&scr==='FIGHT')?'flex':'none';
+  // Mute button: raised above strip during fight on mobile
+  const mutEl=document.getElementById('btn-mute');
+  if(mutEl) mutEl.style.bottom=(mob&&scr==='FIGHT')?(_stripH+8)+'px':'10px';
   updateBackBtn();
+  updateMuteBtn();
 }
 function updateBackBtn(){
   const show=showCtrlBtns()&&['MODE','CHARSEL','MPLOBY'].includes(scr);
@@ -515,7 +725,7 @@ function click2(x,y){
     // Copy button (host only)
     if(isHost&&myPeerId&&ib(x,y,W-152,100,114,44)){
       const url=window.location.href.split('?')[0]+'?room='+myPeerId;
-      navigator.clipboard.writeText(url).then(()=>{copiedFeedback=2000;}).catch(()=>{copiedFeedback=2000;});
+      mpShareOrCopy(url);
     }
   }
 }
@@ -541,6 +751,7 @@ function toggleReady(){
 function checkReady(){if(mpR1&&mpR2){rw=[0,0];matchDone=false;initFight();}}
 function saveNick(){
   if(!nickInput.trim())return;
+  hideNickOverlay();
   const entry={name:nickInput.trim(),streak,date:new Date().toLocaleDateString('el-GR')};
   scores.push(entry);scores.sort((a,b)=>b.streak-a.streak);
   if(scores.length>10)scores=scores.slice(0,10);
@@ -651,7 +862,8 @@ class Egg{
     triggerShake(Math.min(d*0.6,12));
     spawnSparks(hitX||this.x, hitY||this.y-20, d, this.C.col);
     SFX.playHit(this.ci,d);
-    if(this.hp<=0){this.dead=true;this._sa('dead');SFX.playDead(this.ci);triggerShake(18);}
+    haptic(Math.min(15+Math.round(d*1.5),55));
+    if(this.hp<=0){this.dead=true;this._sa('dead');SFX.playDead(this.ci);triggerShake(18);haptic(100);}
   }
   draw(ctx){
     const c=this.C,r=ER,fW=128;
@@ -1102,7 +1314,7 @@ function endRound(winner){
   }else{
     if(winner==='P1')rw[0]++; else rw[1]++;
     rndMsg=getRndMsg(winner);
-    rndEnd=true;rndTimer=2600;SFX.playWin();
+    rndEnd=true;rndTimer=2600;SFX.playWin();haptic([60,25,60]);
   }
 }
 function endMatch(winner){
@@ -1112,7 +1324,8 @@ function endMatch(winner){
   _mpMatchWinner=winner;
   if(mode==='single'){
     if(winner==='P1'){streak++;if(streak>hs)hs=streak;stage++;p2ci=Math.floor(Math.random()*6);scr='STGCLEAR';SFX.playWin();}
-    else{scr='GAMEOVER';collectNick=true;nickInput='';SFX.playLose();}
+    else{scr='GAMEOVER';collectNick=true;nickInput='';SFX.playLose();
+      if(isTouchDev())showNickOverlay();}
   }else{
     scr='MATCHOVER';mpR1=false;mpR2=false;rw=[0,0];
   }
@@ -1688,7 +1901,8 @@ function drawMPLobby(){
         ctx.fillText('Φόρτωση'+dots,W/2-50,127);
       }
       const cp=copiedFeedback>0;
-      _btn(W-152,100,114,44,cp?'✅ OK':'📋 COPY',cp?'#0E4A28':'#0E3A5C',cp?'#2ECC71':'#1A7FC4');
+      const shareLabel=cp?'✅ OK':(navigator.share&&isTouchDev()?'📤 SHARE':'📋 COPY');
+      _btn(W-152,100,114,44,shareLabel,cp?'#0E4A28':'#0E3A5C',cp?'#2ECC71':'#1A7FC4');
       // Status
       const pulse=`rgba(255,230,100,${0.55+0.18*Math.sin(Date.now()*0.003)})`;
       ctx.fillStyle=pulse;ctx.font='18px Arial';ctx.textAlign='center';
@@ -1894,6 +2108,7 @@ function loop(ts){
   const dt=Math.min(ts-lastT,50);lastT=ts;
   blinkT+=dt;if(blinkT>520){blinkT=0;blink=!blink;}
   if(copiedFeedback>0)copiedFeedback-=dt;
+  applyJoyToK(); // Mobile: populate K from joystick (no-op on PC)
   ctx.clearRect(0,0,W,H);
   switch(scr){
     case'INTRO':     drawIntro();break;
