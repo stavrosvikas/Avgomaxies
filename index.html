@@ -194,6 +194,8 @@ const _li=new Image();_li.onload=()=>logoImg=_li;_li.src='assets/logo.png';
 // ════════════════════════════════════════════════
 let peer=null,conn=null,isHost=false,myPeerId=null,mpR1=false,mpR2=false;
 let remInp={l:false,r:false,u:false,d:false};
+// Connection states: idle | peer_init | waiting_guest | connecting | connected | error
+let mpState='idle', mpErr='', _mpTimeout=null;
 
 // ════════════════════════════════════════════════
 //  INPUT
@@ -334,14 +336,14 @@ function click2(x,y){
     return;
   }
   if(scr==='MPLOBY'){
-    if(conn&&conn.open){if(ib(x,y,W/2-110,400,220,52))toggleReady();}
-    // Copy link button (always clickable when host and peer id ready)
-    if(isHost&&myPeerId&&ib(x,y,W-178,133,110,46)){
+    if(mpState==='error'){
+      if(ib(x,y,W/2-120,H/2+50,110,48)){mpRetry();return;}
+      if(ib(x,y,W/2+10, H/2+50,110,48)){closePeer();scr='MODE';updateMobileUI();return;}
+    }
+    if(mpState==='connected'&&ib(x,y,W/2-115,390,230,52))toggleReady();
+    if(isHost&&myPeerId&&ib(x,y,W-152,120,112,46)){
       const url=window.location.href.split('?')[0]+'?room='+myPeerId;
-      navigator.clipboard.writeText(url).then(()=>{copiedFeedback=2000;}).catch(()=>{
-        // Fallback: select text area
-        copiedFeedback=2000;
-      });
+      navigator.clipboard.writeText(url).then(()=>{copiedFeedback=2000;}).catch(()=>{copiedFeedback=2000;});
     }
   }
 }
@@ -359,6 +361,7 @@ function confirmChar(){
   else{scr='MPLOBY';updateBackBtn();if(conn&&conn.open)conn.send({t:'char',i:p1ci});}
 }
 function toggleReady(){
+  if(mpState!=='connected')return;
   if(isHost){mpR1=!mpR1;if(conn&&conn.open)conn.send({t:'rdy',v:mpR1,host:true});}
   else{mpR2=!mpR2;if(conn&&conn.open)conn.send({t:'rdy',v:mpR2,host:false});}
   checkReady();
@@ -610,23 +613,91 @@ function endMatch(winner){
 }
 
 // ════════════════════════════════════════════════
-//  PEERJS
+//  PEERJS — with proper state management
 // ════════════════════════════════════════════════
 function initPeer(host){
-  isHost=host;peer=new Peer();
-  peer.on('open',id=>{myPeerId=id;});
+  isHost=host; mpState='peer_init'; mpErr='';
+  myPeerId=null; mpR1=false; mpR2=false;
+  peer=new Peer();
+  peer.on('open',id=>{
+    myPeerId=id;
+    mpState=isHost?'waiting_guest':'connecting';
+  });
   peer.on('connection',c=>{conn=c;setupConn();});
-  peer.on('error',e=>console.error('PeerJS:',e));
+  peer.on('error',e=>{
+    console.error('PeerJS peer error:',e);
+    mpState='error';
+    const types={
+      'peer-unavailable':'Ο host δεν βρέθηκε. Ο σύνδεσμος ίσως έληξε.',
+      'network':'Πρόβλημα δικτύου.',
+      'server-error':'PeerJS server error.',
+      'socket-error':'Socket error.',
+      'unavailable-id':'ID μη διαθέσιμο.',
+    };
+    mpErr=types[e.type]||`Σφάλμα: ${e.type||e.message||'άγνωστο'}`;
+  });
 }
-function connectToPeer(id){if(!peer)return;conn=peer.connect(id);setupConn();}
+
+function connectToPeer(id){
+  if(!peer)return;
+  mpState='connecting'; mpErr='';
+  conn=peer.connect(id,{reliable:true,serialization:'json'});
+  setupConn();
+  // Timeout: if not connected in 12s show error
+  if(_mpTimeout)clearTimeout(_mpTimeout);
+  _mpTimeout=setTimeout(()=>{
+    if(mpState==='connecting'){
+      mpState='error';
+      mpErr='Δεν ήρθε απάντηση από τον host (timeout 12s). Ο host πρέπει να είναι online.';
+    }
+  },12000);
+}
+
 function setupConn(){
+  conn.on('open',()=>{
+    mpState='connected';
+    if(_mpTimeout){clearTimeout(_mpTimeout);_mpTimeout=null;}
+    console.log('P2P connection open!');
+  });
   conn.on('data',data=>{
-    if(data.t==='inp')remInp=data.i;
+    if(data.t==='inp') remInp=data.i;
     else if(data.t==='char'){if(isHost)p2ci=data.i;else p1ci=data.i;}
     else if(data.t==='rdy'){if(data.host)mpR1=data.v;else mpR2=data.v;checkReady();}
   });
+  conn.on('error',e=>{
+    console.error('Conn error:',e);
+    mpState='error'; mpErr='Η σύνδεση έκλεισε με σφάλμα.';
+  });
+  conn.on('close',()=>{
+    if(scr==='FIGHT'){
+      // Opponent disconnected during fight - show message
+      rndMsg='Ο αντίπαλος αποσυνδέθηκε!';
+      rndEnd=true; rndTimer=3000;
+      setTimeout(()=>endMatch(isHost?'P1':'P2'),3100);
+    }else if(scr==='MPLOBY'){
+      mpState='error'; mpErr='Η σύνδεση έκλεισε.';
+    }
+  });
 }
-function closePeer(){if(conn)conn.close();if(peer)peer.destroy();conn=null;peer=null;myPeerId=null;mpR1=false;mpR2=false;}
+
+function closePeer(){
+  if(_mpTimeout)clearTimeout(_mpTimeout);
+  if(conn){try{conn.close();}catch(e){}}
+  if(peer){try{peer.destroy();}catch(e){}}
+  conn=null;peer=null;myPeerId=null;
+  mpR1=false;mpR2=false;mpState='idle';mpErr='';
+}
+
+function mpRetry(){
+  closePeer();
+  if(isHost){initPeer(true);}
+  else{
+    // Re-read room ID from URL
+    const r=new URLSearchParams(window.location.search).get('room');
+    if(r){initPeer(false);peer.on('open',()=>connectToPeer(r));}
+    else{scr='MODE';updateMobileUI();}
+  }
+}
 
 
 // ════════════════════════════════════════════════
@@ -1011,11 +1082,42 @@ function drawMPLobby(){
   ctx.textAlign='center';ctx.fillText('MULTIPLAYER LOBBY',W/2,58);
   ctx.strokeStyle='rgba(26,127,196,0.4)';ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(W/2-175,67);ctx.lineTo(W/2+175,67);ctx.stroke();
-  const connected=conn&&conn.open;
-  const roomUrl=myPeerId?(window.location.href.split('?')[0]+'?room='+myPeerId):'⏳ Φόρτωση...';
+
+  // ── ERROR state ──────────────────────────────
+  if(mpState==='error'){
+    ctx.save();ctx.textAlign='center';
+    ctx.font='22px Arial';ctx.fillStyle='#E74C3C';
+    ctx.fillText('❌  Αποτυχία σύνδεσης',W/2,H/2-50);
+    // Wrap error message
+    const words=mpErr.split(' ');let line='';const maxW=500;
+    let lineY=H/2-15;
+    ctx.font='16px Arial';ctx.fillStyle='rgba(255,200,200,0.8)';
+    words.forEach(w=>{
+      const test=line+w+' ';
+      if(ctx.measureText(test).width>maxW&&line){
+        ctx.fillText(line.trim(),W/2,lineY);lineY+=22;line=w+' ';
+      }else{line=test;}
+    });
+    if(line.trim())ctx.fillText(line.trim(),W/2,lineY);
+    ctx.restore();
+    _btn(W/2-120,H/2+50,110,48,'🔄 RETRY','#1A3060','#2E7FC4');
+    _btn(W/2+10, H/2+50,110,48,'← ΠΙΣΩ', '#3A1060','#8B30FF');
+    // Click areas handled in click2
+    ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='12px Arial';ctx.textAlign='center';
+    ctx.fillText('Βεβαιώσου ότι ο host έχει το παιχνίδι ανοιχτό πριν ανοίξεις το link.',W/2,H-30);
+    return;
+  }
+
+  // ── HOST view ────────────────────────────────
   if(isHost){
+    if(mpState==='peer_init'){
+      ctx.fillStyle='rgba(255,230,100,0.7)';ctx.font='18px Arial';ctx.textAlign='center';
+      ctx.fillText('⏳  Φόρτωση σύνδεσης PeerJS...',W/2,H/2);
+      return;
+    }
     ctx.fillStyle='rgba(255,255,255,0.55)';ctx.font='16px Arial';ctx.textAlign='center';
     ctx.fillText('Στείλε αυτό το link στον αντίπαλό σου:',W/2,110);
+    const roomUrl=myPeerId?(window.location.href.split('?')[0]+'?room='+myPeerId):'...';
     _rr(52,120,W-202,46,8);ctx.fillStyle='rgba(0,10,30,0.6)';ctx.fill();
     ctx.strokeStyle='rgba(79,195,247,0.3)';ctx.lineWidth=1;_rr(52,120,W-202,46,8);ctx.stroke();
     ctx.fillStyle='#4FC3F7';ctx.font='12px monospace';ctx.textAlign='left';
@@ -1023,18 +1125,36 @@ function drawMPLobby(){
     ctx.fillText(du,65,149);
     const cp=copiedFeedback>0;
     _btn(W-152,120,112,46,cp?'✅ COPIED!':'📋 COPY',cp?'#0E4A28':'#0E3A5C',cp?'#2ECC71':'#1A7FC4');
-    ctx.fillStyle=connected?'#2ECC71':'rgba(255,230,100,0.65)';ctx.font='19px Arial';ctx.textAlign='center';
-    ctx.fillText(connected?'✅ Ο αντίπαλος συνδέθηκε!':'⏳ Αναμονή αντιπάλου...',W/2,202);
-  }else{
-    ctx.fillStyle=connected?'#2ECC71':'rgba(255,210,70,0.8)';ctx.font='21px Arial';ctx.textAlign='center';
-    ctx.fillText(connected?'✅ Συνδέθηκες!':'⏳ Σύνδεση...',W/2,175);
+    const waitPulse=`rgba(255,230,100,${0.5+0.2*Math.sin(Date.now()*0.003)})`;
+    ctx.fillStyle=mpState==='connected'?'#2ECC71':waitPulse;ctx.font='19px Arial';ctx.textAlign='center';
+    ctx.fillText(mpState==='connected'?'✅ Ο αντίπαλος συνδέθηκε!':'⏳ Αναμονή αντιπάλου...',W/2,202);
   }
-  if(connected){
+
+  // ── GUEST view ───────────────────────────────
+  if(!isHost){
+    if(mpState==='peer_init'||mpState==='connecting'){
+      // Animated connecting dots
+      const dots='.'.repeat(1+Math.floor(Date.now()/500)%3);
+      const pulse=`rgba(255,220,80,${0.6+0.2*Math.sin(Date.now()*0.004)})`;
+      ctx.fillStyle=pulse;ctx.font='24px Arial';ctx.textAlign='center';
+      ctx.fillText(mpState==='peer_init'?`⏳  Σύνδεση στον server${dots}`:`⏳  Σύνδεση με τον host${dots}`,W/2,H/2-20);
+      ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='14px Arial';
+      ctx.fillText('Βεβαιώσου ότι ο host έχει το παιχνίδι ανοιχτό.',W/2,H/2+20);
+      return;
+    }
+    if(mpState==='connected'){
+      ctx.fillStyle='#2ECC71';ctx.font='22px Arial';ctx.textAlign='center';
+      ctx.fillText('✅  Συνδέθηκες!',W/2,175);
+    }
+  }
+
+  // ── CONNECTED: char select + ready ───────────
+  if(mpState==='connected'){
     ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='14px Arial';ctx.textAlign='center';
     ctx.fillText('Επίλεξε χαρακτήρα (← →) και πάτα READY',W/2,252);
     ctx.fillStyle='rgba(255,200,80,0.55)';ctx.font='12px Arial';
     ctx.fillText(`🗺  Map: ${MAP_CFG[p1ci].name}  ·  χαρακτήρας host`,W/2,270);
-    const pc=CHARS[p1ci],cx2=W/2,cy2=296,r2=26;
+    const pc=CHARS[p1ci],cx2=W/2,cy2=300,r2=26;
     const g2=ctx.createRadialGradient(cx2-5,cy2-8,3,cx2,cy2,r2);
     g2.addColorStop(0,_lx(pc.col,45));g2.addColorStop(1,pc.shade);
     ctx.fillStyle=g2;ctx.beginPath();ctx.ellipse(cx2,cy2,r2*0.82,r2,0,0,Math.PI*2);ctx.fill();
@@ -1048,6 +1168,7 @@ function drawMPLobby(){
     ctx.fillText(`ΑΝΤΙΠΑΛΟΣ: ${oppR?'READY ✅':'ΟΧΙ ΕΤΟΙΜΟΣ'}`,W/2+80,352);
     _btn(W/2-115,390,230,52,myR?'✅ READY!':'READY',myR?'#0E4A28':'#1E2E1E',myR?'#2ECC71':null);
   }
+
   ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font='13px Arial';ctx.textAlign='center';
   ctx.fillText(showCtrlBtns()?'Κουμπί ΠΙΣΩ για επιστροφή':'ESC για επιστροφή',W/2,H-15);
 }
@@ -1147,7 +1268,20 @@ function loop(ts){
 // ════════════════════════════════════════════════
 function checkUrl(){
   const r=new URLSearchParams(window.location.search).get('room');
-  if(r){mode='multi';isHost=false;scr='MPLOBY';peer=new Peer();peer.on('open',()=>connectToPeer(r));peer.on('error',e=>console.error(e));}
+  if(r){
+    mode='multi';isHost=false;scr='MPLOBY';
+    mpState='peer_init'; mpErr='';
+    peer=new Peer();
+    peer.on('open',()=>{
+      mpState='connecting';
+      connectToPeer(r);
+    });
+    peer.on('error',e=>{
+      mpState='error';
+      const types={'peer-unavailable':'Ο host δεν βρέθηκε. Ο host πρέπει να έχει το παιχνίδι ανοιχτό.','network':'Πρόβλημα δικτύου.','server-error':'Server error.'};
+      mpErr=types[e.type]||`Σφάλμα: ${e.type}`;
+    });
+  }
 }
 
 SFX.init();
