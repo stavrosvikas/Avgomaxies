@@ -769,6 +769,8 @@ function initFight(){
   fightSec=99;fightMs=0;rndEnd=false;rndMsg='';rndTimer=0;
   matchDone=false;chargeLastSfx=0;
   _prevP1u=false;_prevP2u=false;
+  _gPrevP1hp=MAX_HP;_gPrevP2hp=MAX_HP;
+  _gPrevP1dead=false;_gPrevP2dead=false;_gPrevRndEnd=false;_gPrevCd=0;
   if(mode==='single')aiCtrl=new AI(aiDiff(stage), p2ci);
   particles.length=0; shakePow=0;
   p1Perfect=true; p2Perfect=true;
@@ -801,7 +803,7 @@ function collide(a,b){
   }
 }
 function updateFight(dt){
-  // Screen shake decay
+  // Screen shake decay (both sides)
   if(shakePow>0){
     shakePow*=0.80;
     shakeX=(Math.random()-0.5)*shakePow;
@@ -810,7 +812,16 @@ function updateFight(dt){
   }
   updateParticles(dt);
 
-  // Countdown before fight starts
+  // ── GUEST: only send inputs, render host state ──
+  // Guest does NOT run simulation — zero chance of desync
+  if(mode==='multi'&&!isHost){
+    if(conn&&conn.open) conn.send({t:'inp',i:{l:K.l,r:K.r,u:K.u,d:K.d}});
+    return; // rendering handled by guestApplyState()
+  }
+
+  // ── HOST (and single player): run authoritative simulation ──
+
+  // Countdown
   if(cdActive){
     cdTimer-=dt;
     if(cdTimer<=0){
@@ -818,7 +829,8 @@ function updateFight(dt){
       if(cdCount>0){cdTimer=700;SFX.playCountdown();}
       else{cdActive=false;SFX.playRoundStart();}
     }
-    return; // freeze gameplay during countdown
+    if(mode==='multi'&&conn&&conn.open) conn.send(hostSerializeState());
+    return;
   }
 
   if(matchDone)return;
@@ -827,51 +839,112 @@ function updateFight(dt){
     if(rndTimer<=0){
       rndEnd=false;
       if(rw[0]>=ROUNDS_WIN||rw[1]>=ROUNDS_WIN){endMatch(rndWinner);}
-      else{p1=new Egg(210,p1ci,1);p2=new Egg(W-210,p2ci,-1);fightSec=99;fightMs=0;
+      else{
+        p1=new Egg(210,p1ci,1);p2=new Egg(W-210,p2ci,-1);
+        fightSec=99;fightMs=0;
         particles.length=0;
         p1Perfect=true;p2Perfect=true;
         p1Combo=0;p1ComboTimer=0;p2Combo=0;p2ComboTimer=0;
-        if(mode==='single')aiCtrl=new AI(aiDiff(stage), p2ci);
+        if(mode==='single')aiCtrl=new AI(aiDiff(stage),p2ci);
         startCountdown();
       }
     }
+    if(mode==='multi'&&conn&&conn.open) conn.send(hostSerializeState());
     return;
   }
+
   fightMs+=dt;
   p1ComboTimer=Math.max(0,p1ComboTimer-dt); if(p1ComboTimer<=0)p1Combo=0;
   p2ComboTimer=Math.max(0,p2ComboTimer-dt); if(p2ComboTimer<=0)p2Combo=0;
   if(fightMs>=1000){fightMs-=1000;fightSec=Math.max(0,fightSec-1);if(fightSec<=10&&fightSec>0)SFX.playCountdown();}
   if(fightSec<=0){endRound(p1.hp>p2.hp?'P1':p2.hp>p1.hp?'P2':'DRAW');return;}
 
-  // ── Input routing ────────────────────────────
-  // p1 is always HOST egg, p2 is always GUEST egg.
-  // HOST: local K → p1, received remInp → p2
-  // GUEST: local K → p2, received remInp → p1
+  // Input routing — single player or HOST running simulation
   const myInp={l:K.l,r:K.r,u:K.u,d:K.d};
   let p1i,p2i;
   if(mode==='single'){
     p1i=myInp;
     p2i=aiCtrl.update(p2,p1,dt);
-  }else if(isHost){
-    p1i=myInp;   // host controls left/p1
-    p2i=remInp;  // guest's received inputs control right/p2
   }else{
-    p1i=remInp;  // host's received inputs control left/p1
-    p2i=myInp;   // guest controls right/p2
+    // Host is p1, guest (remInp) is p2
+    p1i=myInp;
+    p2i=remInp;
   }
 
-  // Jump edge-detect: one prev-state tracker per egg
   const p1u=p1i.u&&!_prevP1u;
   const p2u=p2i.u&&!_prevP2u;
   _prevP1u=p1i.u;
   _prevP2u=p2i.u;
 
-  p1.update(p1i.l,p1i.r,p1u,p1i.d,dt,isHost||mode==='single');
-  p2.update(p2i.l,p2i.r,p2u,p2i.d,dt,!isHost&&mode==='multi');
+  p1.update(p1i.l,p1i.r,p1u,p1i.d,dt,true);
+  p2.update(p2i.l,p2i.r,p2u,p2i.d,dt,false);
   collide(p1,p2);
   if(p1.dead||p2.dead)endRound(p1.dead?'P2':'P1');
-  // Send MY local inputs to opponent
-  if(mode==='multi'&&conn&&conn.open)conn.send({t:'inp',i:myInp});
+
+  // HOST: broadcast full authoritative state every frame
+  if(mode==='multi'&&conn&&conn.open) conn.send(hostSerializeState());
+}
+
+// ── Host serializes full game state ──────────────
+function hostSerializeState(){
+  const e2o=e=>({
+    x:+e.x.toFixed(1), y:+e.y.toFixed(1),
+    vx:+e.vx.toFixed(2), vy:+e.vy.toFixed(2),
+    hp:e.hp, cl:e.crackLv, fc:e.facing,
+    rot:+e.rot.toFixed(3), an:e.anim, fi:e.frameIdx,
+    hf:Math.round(e.hitFlash), dead:e.dead?1:0,
+    ch:e.charging?1:0, onG:e.onGnd?1:0
+  });
+  return {
+    t:'st',
+    p1:e2o(p1), p2:e2o(p2),
+    sec:fightSec,
+    rw:rw, re:rndEnd?1:0, rm:rndMsg, rv:rndWinner,
+    md:matchDone?1:0, mw:_mpMatchWinner,
+    cd:cdActive?cdCount:0,
+    c1:p1Combo, c2:p2Combo
+  };
+}
+
+// ── Guest applies authoritative state from host ──
+let _gPrevP1hp=MAX_HP,_gPrevP2hp=MAX_HP;
+let _gPrevP1dead=false,_gPrevP2dead=false,_gPrevRndEnd=false,_gPrevCd=0;
+function guestApplyState(d){
+  if(!p1||!p2)return;
+  const o2e=(e,s)=>{
+    e.x=s.x; e.y=s.y; e.vx=s.vx; e.vy=s.vy;
+    e.hp=s.hp; e.crackLv=s.cl; e.facing=s.fc;
+    e.rot=s.rot; e.frameIdx=s.fi;
+    if(e.anim!==s.an){e.anim=s.an; e.frameIdx=s.fi;}
+    e.hitFlash=s.hf; e.dead=s.dead===1;
+    e.charging=s.ch===1; e.onGnd=s.onG===1;
+  };
+  o2e(p1,d.p1); o2e(p2,d.p2);
+  fightSec=d.sec; rw=d.rw;
+  rndEnd=d.re===1; rndMsg=d.rm; rndWinner=d.rv;
+  matchDone=d.md===1; _mpMatchWinner=d.mw||'';
+  cdActive=d.cd>0; cdCount=d.cd;
+  p1Combo=d.c1||0; p2Combo=d.c2||0;
+
+  // ── Guest SFX — detect state changes ──────────
+  if(d.p1.hp<_gPrevP1hp&&!_gPrevP1dead)
+    { triggerShake((_gPrevP1hp-d.p1.hp)*0.6); spawnSparks(p1.x,p1.y-20,_gPrevP1hp-d.p1.hp,CHARS[p1ci].col); SFX.playHit(p1ci,_gPrevP1hp-d.p1.hp); }
+  if(d.p2.hp<_gPrevP2hp&&!_gPrevP2dead)
+    { triggerShake((_gPrevP2hp-d.p2.hp)*0.6); spawnSparks(p2.x,p2.y-20,_gPrevP2hp-d.p2.hp,CHARS[p2ci].col); SFX.playHit(p2ci,_gPrevP2hp-d.p2.hp); }
+  if(d.p1.dead&&!_gPrevP1dead) SFX.playDead(p1ci);
+  if(d.p2.dead&&!_gPrevP2dead) SFX.playDead(p2ci);
+  if(d.re&&!_gPrevRndEnd) SFX.playWin();
+  if(d.cd>0&&_gPrevCd!==d.cd&&d.cd>0) SFX.playCountdown();
+  if(d.cd===0&&_gPrevCd>0) SFX.playRoundStart();
+
+  _gPrevP1hp=d.p1.hp; _gPrevP2hp=d.p2.hp;
+  _gPrevP1dead=d.p1.dead===1; _gPrevP2dead=d.p2.dead===1;
+  _gPrevRndEnd=d.re===1; _gPrevCd=d.cd;
+
+  // Screen transitions driven by host state
+  if(d.md&&scr==='FIGHT'){
+    SFX.stopBGM(); scr='MATCHOVER'; updateMobileUI();
+  }
 }
 function endRound(winner){
   rndWinner=winner;
@@ -973,7 +1046,8 @@ function setupConn(){
     conn.send({t:'char',i:myIdx});
   });
   conn.on('data',data=>{
-    if(data.t==='inp') remInp=data.i;
+    if(data.t==='inp')  remInp=data.i;           // host receives guest inputs
+    else if(data.t==='st') guestApplyState(data); // guest receives host state
     else if(data.t==='char'){
       if(isHost)p2ci=data.i; else p1ci=data.i;
     }
