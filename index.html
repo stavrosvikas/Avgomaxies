@@ -41,6 +41,17 @@ body{display:flex;align-items:center;justify-content:center;}
   transition:background 0.1s;
 }
 #btn-back:active{background:rgba(155,48,255,0.4);}
+#btn-mute{
+  position:fixed;top:10px;right:12px;z-index:50;
+  width:40px;height:40px;border-radius:50%;
+  background:rgba(0,0,0,0.48);border:1.5px solid rgba(255,255,255,0.22);
+  display:flex;align-items:center;justify-content:center;
+  font-size:19px;cursor:pointer;pointer-events:all;
+  transition:background 0.12s,border-color 0.12s,transform 0.1s;
+  user-select:none;-webkit-user-select:none;
+}
+#btn-mute:active{background:rgba(155,48,255,0.45);transform:scale(0.90);}
+#btn-mute.muted{background:rgba(80,0,0,0.55);border-color:rgba(255,80,80,0.45);}
 
 /* Rotate overlay — shows only on portrait touch screens */
 #ro{
@@ -66,6 +77,7 @@ body{display:flex;align-items:center;justify-content:center;}
   <div class="cb" id="cb-r">→</div>
 </div>
 <div id="btn-back" onclick="handleBack()">← ΠΙΣΩ</div>
+<div id="btn-mute" onclick="handleMuteClick()" title="Mute / Unmute">🔊</div>
 <div id="ro">
   <div class="ri">📱</div>
   <div class="rt">ΓΥΡΙΣΕ ΤΗΝ ΟΘΟΝΗ</div>
@@ -379,7 +391,7 @@ function onKey(e){
     return;
   }
   if(k==='Escape'){if(scr==='CHARSEL')scr='MODE';if(scr==='FIGHT')scr='INTRO';}
-  if(k==='m'||k==='M')SFX.toggleMute();
+  if(k==='m'||k==='M'){SFX.toggleMute();updateMuteBtn();}
 }
 
 // ════════════════════════════════════════════════
@@ -423,6 +435,18 @@ function updateMobileUI(){
 function updateBackBtn(){
   const show=showCtrlBtns()&&['MODE','CHARSEL','MPLOBY'].includes(scr);
   document.getElementById('btn-back').style.display=show?'block':'none';
+}
+function updateMuteBtn(){
+  const el=document.getElementById('btn-mute');
+  if(!el)return;
+  const m=SFX.isMuted();
+  el.textContent=m?'🔇':'🔊';
+  el.classList.toggle('muted',m);
+}
+function handleMuteClick(){
+  SFX.resume();
+  SFX.toggleMute();
+  updateMuteBtn();
 }
 function handleBack(){
   if(scr==='CHARSEL'){scr='MODE';updateMobileUI();}
@@ -1381,15 +1405,12 @@ function drawBG(){
     ctx.restore();
   }
 
-  // Map name watermark (stage number or map name)
+  // Map name watermark (stage number only — subtle background)
   if(mode==='single'){
     ctx.fillStyle='rgba(255,255,255,0.04)';
     ctx.font=`bold 200px 'Bebas Neue',Arial`;ctx.textAlign='center';
     ctx.fillText(`${stage}`,W/2,GROUND+10);
   }
-  // Map name tag (small, top center)
-  ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font=`12px 'Bebas Neue',Arial`;
-  ctx.textAlign='center';ctx.fillText(M.name.toUpperCase(),W/2,H-8);
 }
 
 // ════════════════════════════════════════════════
@@ -1433,8 +1454,7 @@ function drawHUD(){
     ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='11px Arial';ctx.textAlign='center';
     ctx.fillText(`STAGE ${stage}  ·  STREAK ${streak}  ·  BEST ${hs}`,W/2,75);
   }
-  ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font='11px Arial';ctx.textAlign='right';
-  ctx.fillText(SFX.isMuted()?'🔇 M':'M=mute',W-8,H-8);
+  // (mute button is drawn by drawMuteBtn — top-right corner)
 
   // Combo display
   if(p1Combo>=2){
@@ -1497,7 +1517,7 @@ function drawHBar(x,y,w,h,ratio,col,dir){
 function drawCtrlRef(){
   if(showCtrlBtns())return;
   ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font='11px Arial';ctx.textAlign='left';
-  ctx.fillText('← → move  ↑ jump  ↓ hold=charge / release=attack  ·  M=mute',10,H-10);
+  ctx.fillText('← → move  ↑ jump  ↓ hold=charge / release=attack',10,H-10);
 }
 
 // ════════════════════════════════════════════════
