@@ -187,6 +187,54 @@ let hs=scores.length?Math.max(...scores.map(s=>s.streak)):0;
 let rw=[0,0],roundMsg='',rndTimer=0,rndWinner='',rndEnd=false,matchDone=false;
 let nickInput='',collectNick=false,blink=true,blinkT=0,chargeLastSfx=0,copiedFeedback=0;
 let logoImg=null;
+
+// Screen shake
+let shakeX=0,shakeY=0,shakePow=0;
+function triggerShake(power){ shakePow=Math.max(shakePow,power); }
+
+// Particle sparks
+const particles=[];
+function spawnSparks(x,y,power,col){
+  const n=Math.min(6+Math.floor(power*1.5),16);
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2;
+    const spd=2+Math.random()*power*0.6;
+    particles.push({x,y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd-2,life:1,col,r:3+Math.random()*3});
+  }
+}
+function updateParticles(dt){
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx*(dt/16); p.y+=p.vy*(dt/16);
+    p.vy+=0.18*(dt/16);
+    p.life-=dt/400;
+    if(p.life<=0)particles.splice(i,1);
+  }
+}
+function drawParticles(){
+  particles.forEach(p=>{
+    ctx.save();
+    ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle=p.col;
+    ctx.shadowBlur=8;ctx.shadowColor=p.col;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  });
+}
+
+// Countdown
+let cdCount=0,cdTimer=0,cdActive=false;
+function startCountdown(){
+  cdCount=3;cdTimer=900;cdActive=true;
+}
+
+// Perfect round tracking (no damage received)
+let p1Perfect=true, p2Perfect=true;
+
+// Hit combo
+let p1Combo=0,p1ComboTimer=0;
+let p2Combo=0,p2ComboTimer=0;
+
 const _li=new Image();_li.onload=()=>logoImg=_li;_li.src='assets/logo.png';
 
 // ════════════════════════════════════════════════
@@ -240,10 +288,12 @@ function onKey(e){
     return;
   }
   if(scr==='MPLOBY'){
-    if(k==='ArrowLeft'&&p1ci>0){p1ci--;if(conn&&conn.open)conn.send({t:'char',i:p1ci});}
-    if(k==='ArrowRight'&&p1ci<5){p1ci++;if(conn&&conn.open)conn.send({t:'char',i:p1ci});}
+    let changed=false;
+    if(k==='ArrowLeft'){if(isHost&&p1ci>0){p1ci--;changed=true;}else if(!isHost&&p2ci>0){p2ci--;changed=true;}}
+    if(k==='ArrowRight'){if(isHost&&p1ci<5){p1ci++;changed=true;}else if(!isHost&&p2ci<5){p2ci++;changed=true;}}
+    if(changed&&conn&&conn.open)conn.send({t:'char',i:isHost?p1ci:p2ci});
     if(k==='Enter')toggleReady();
-    if(k==='Escape'){closePeer();scr='MODE';}
+    if(k==='Escape'){closePeer();scr='MODE';updateMobileUI();}
     return;
   }
   if(scr==='STGCLEAR'&&(k===' '||k==='Enter')){initFight();return;}
@@ -337,11 +387,24 @@ function click2(x,y){
   }
   if(scr==='MPLOBY'){
     if(mpState==='error'){
-      if(ib(x,y,W/2-120,H/2+50,110,48)){mpRetry();return;}
-      if(ib(x,y,W/2+10, H/2+50,110,48)){closePeer();scr='MODE';updateMobileUI();return;}
+      if(ib(x,y,W/2-120,H/2+30,110,46)){mpRetry();return;}
+      if(ib(x,y,W/2+10, H/2+30,110,46)){closePeer();scr='MODE';updateMobileUI();return;}
     }
-    if(mpState==='connected'&&ib(x,y,W/2-115,390,230,52))toggleReady();
-    if(isHost&&myPeerId&&ib(x,y,W-152,120,112,46)){
+    if(mpState==='connected'){
+      // Character cards
+      const cw2=130,sx2=(W-6*cw2)/2;
+      for(let i=0;i<6;i++){
+        if(ib(x,y,sx2+i*cw2+3,72,cw2-6,152)){
+          if(isHost)p1ci=i; else p2ci=i;
+          if(conn&&conn.open)conn.send({t:'char',i:isHost?p1ci:p2ci});
+          return;
+        }
+      }
+      // Ready button
+      if(ib(x,y,W/2-115,H-82,230,48))toggleReady();
+    }
+    // Copy button (host only)
+    if(isHost&&myPeerId&&ib(x,y,W-152,100,114,44)){
       const url=window.location.href.split('?')[0]+'?room='+myPeerId;
       navigator.clipboard.writeText(url).then(()=>{copiedFeedback=2000;}).catch(()=>{copiedFeedback=2000;});
     }
@@ -422,8 +485,16 @@ class Egg{
     if(!this.onGnd)this.vy+=GRAVITY;
     this.x+=this.vx;this.y+=this.vy;
     if(this.y>=GROUND){this.y=GROUND;this.onGnd=true;this.vy=this.vy<-5?-this.vy*0.12:0;}
-    if(this.x<ER+6){this.x=ER+6;this.vx=Math.abs(this.vx)*0.25;}
-    if(this.x>W-ER-6){this.x=W-ER-6;this.vx=-Math.abs(this.vx)*0.25;}
+    if(this.x<ER+6){
+      this.x=ER+6;
+      if(this.vx<-2){spawnSparks(this.x,this.y-20,Math.abs(this.vx)*1.5,'#FFD700');this.vx=Math.abs(this.vx)*0.55;}
+      else{this.vx=Math.abs(this.vx)*0.25;}
+    }
+    if(this.x>W-ER-6){
+      this.x=W-ER-6;
+      if(this.vx>2){spawnSparks(this.x,this.y-20,Math.abs(this.vx)*1.5,'#FFD700');this.vx=-Math.abs(this.vx)*0.55;}
+      else{this.vx=-Math.abs(this.vx)*0.25;}
+    }
     this.rot+=this.vx*0.042;
     if(this.hitFlash>0)this.hitFlash-=dt;
     if(this.dmgCooldown>0)this.dmgCooldown-=dt;
@@ -444,14 +515,33 @@ class Egg{
     if(this.frameT>=cfg.fps){this.frameT=0;this.frameIdx=(this.frameIdx+1)%cfg.f;}
   }
   _sa(a){if(this.anim===a)return;this.anim=a;this.frameIdx=0;this.frameT=0;}
-  takeDamage(dmg){
+  takeDamage(dmg,hitX,hitY,attackerIsP1){
     if(this.dead||this.dmgCooldown>0)return;
-    const d=Math.round(dmg);if(d<2)return;
+    let d=Math.round(dmg);if(d<2)return;
+
+    // Combo multiplier — if attacker hits again within 1.2s, bonus damage
+    if(attackerIsP1){
+      p1ComboTimer=1200;
+      p1Combo++;
+      if(p1Combo>=2) d=Math.round(d*(1+Math.min(p1Combo-1,3)*0.15));
+    } else {
+      p2ComboTimer=1200;
+      p2Combo++;
+      if(p2Combo>=2) d=Math.round(d*(1+Math.min(p2Combo-1,3)*0.15));
+    }
+
     this.hp=Math.max(0,this.hp-d);
     this.hitFlash=260;this._sa('hit');
-    this.dmgCooldown=420; // 420ms cooldown between damage hits
+    this.dmgCooldown=420;
+    // Mark that this egg was hit (no perfect)
+    if(attackerIsP1!==undefined){
+      if(!attackerIsP1) p1Perfect=false; // p1 was hit
+      else p2Perfect=false;              // p2 was hit
+    }
+    triggerShake(Math.min(d*0.6,12));
+    spawnSparks(hitX||this.x, hitY||this.y-20, d, this.C.col);
     SFX.playHit(this.ci,d);
-    if(this.hp<=0){this.dead=true;this._sa('dead');SFX.playDead(this.ci);}
+    if(this.hp<=0){this.dead=true;this._sa('dead');SFX.playDead(this.ci);triggerShake(18);}
   }
   draw(ctx){
     const c=this.C,r=ER,fW=128;
@@ -508,32 +598,149 @@ function _lx(hex,a){const n=parseInt(hex.replace('#',''),16);return`rgb(${Math.m
 //  AI
 // ════════════════════════════════════════════════
 class AI{
-  constructor(diff){this.d=diff;this.state='approach';this.timer=0;this.chDir=1;this._chHold=0;}
-  update(me,foe,dt){
-    this.timer-=dt;
-    const i={l:false,r:false,u:false,d:false};
-    if(me.dead||foe.dead)return i;
-    const dx=foe.x-me.x,dist=Math.abs(dx);
-    const react=Math.max(60,600-this.d*42),agg=Math.min(0.95,0.08+this.d*0.08);
-    if(this.timer<=0){
-      if(Math.random()<agg&&me.onGnd&&dist>90){
-        this.state='charge';this.chDir=dx>0?1:-1;
-        this._chHold=450+this.d*120+Math.random()*200;
-      }else if(dist<60&&Math.random()<0.4){this.state='retreat';}
-      else{this.state='approach';}
-      this.timer=react+Math.random()*react*0.6;
+  constructor(diff, ci){
+    this.d = diff;
+    this.ci = ci; // character index → personality
+    this.state = 'patrol';
+    this.timer = 0;
+    this._chHold = 0;
+    this.chDir = 1;
+    this._retreatTimer = 0;
+    this._patrolDir = 1;
+    this._patrolTimer = 0;
+    // Personality traits per character
+    const P = [
+      {aggr:0.55, speed:1.0, chargeMul:1.0, jumpFreq:0.003, name:'balanced'}, // Sunny
+      {aggr:0.70, speed:0.80,chargeMul:1.6, jumpFreq:0.001, name:'heavy'},    // Bruno — slow but big charge
+      {aggr:0.45, speed:1.30,chargeMul:0.7, jumpFreq:0.007, name:'agile'},    // Alba — quick, lots of jumps
+      {aggr:0.80, speed:0.95,chargeMul:1.4, jumpFreq:0.002, name:'aggressive'},// Nero
+      {aggr:0.50, speed:1.10,chargeMul:1.1, jumpFreq:0.004, name:'technical'},  // Azure
+      {aggr:0.75, speed:1.05,chargeMul:1.3, jumpFreq:0.003, name:'offensive'}, // Rosso
+    ];
+    this.P = P[ci % 6];
+  }
+
+  update(me, foe, dt){
+    this.timer        -= dt;
+    this._retreatTimer = Math.max(0, this._retreatTimer - dt);
+    this._patrolTimer -= dt;
+    const i = {l:false, r:false, u:false, d:false};
+    if(me.dead || foe.dead) return i;
+
+    const dx   = foe.x - me.x;
+    const dist = Math.abs(dx);
+
+    // ── Difficulty scaling ──────────────────────────────
+    // react: how often AI reassesses (ms). Starts slow, gets fast.
+    const react     = Math.max(80, 700 - this.d * 48);
+    // aggression: chance to attack when in good position
+    const baseAggr  = this.P.aggr;
+    const scaledAggr= Math.min(baseAggr, 0.10 + this.d * 0.07);
+    // approach speed multiplier
+    const spd = this.P.speed;
+
+    // ── Corner escape ───────────────────────────────────
+    const nearLeft  = me.x < 100;
+    const nearRight = me.x > W - 100;
+    const beingPinned = (nearLeft && dx < 0) || (nearRight && dx > 0);
+    if(beingPinned && this._retreatTimer <= 0){
+      this.state = 'retreat';
+      this._retreatTimer = 900;
+      this.timer = 0;
     }
-    if(this.state==='approach'){
-      if(dx>12)i.r=true;else if(dx<-12)i.l=true;
-      if(Math.random()<0.002*Math.max(this.d,0.5)&&me.onGnd)i.u=true;
-    }else if(this.state==='retreat'){
-      if(dx>0)i.l=true;else i.r=true;
-    }else if(this.state==='charge'){
+
+    // ── Detect incoming charge (evade) ──────────────────
+    const foeCharging = foe.charging || (foe.anim === 'superjump' && !foe.onGnd);
+    const foeComingFast = Math.abs(foe.vx) > 6 && Math.sign(foe.vx) === Math.sign(dx) * -1;
+    if(foeCharging && dist < 200 && this._retreatTimer <= 0 && this.d >= 2){
+      this.state = 'retreat';
+      this._retreatTimer = 600;
+      this.timer = 0;
+    }
+
+    // ── State decision ──────────────────────────────────
+    if(this.timer <= 0 && this._retreatTimer <= 0){
+      const roll = Math.random();
+      const tooClose   = dist < 75;
+      const idealRange = dist >= 130 && dist <= 380;
+      const farAway    = dist > 380;
+
+      if(tooClose){
+        this.state = 'retreat';
+        this._retreatTimer = 500 + Math.random()*300;
+      } else if(roll < scaledAggr && me.onGnd && idealRange){
+        // Attack!
+        this.state  = 'charge_prep';
+        this.chDir  = dx > 0 ? 1 : -1;
+        // Hold time based on difficulty + personality
+        const baseHold = 350 + this.P.chargeMul * 180;
+        this._chHold = baseHold + this.d * 80 + Math.random() * 180;
+      } else if(farAway || roll < 0.70){
+        // Hunt the player — the default active state
+        this.state = 'stalk';
+      } else {
+        this.state = 'patrol';
+      }
+      this.timer = react + Math.random() * react * 0.4;
+    }
+
+    // ── Execute state ────────────────────────────────────
+
+    if(this.state === 'stalk'){
+      // Move toward player, but keep a comfortable gap (65px)
+      // This gap shrinks at higher difficulty
+      const gap = Math.max(65, 130 - this.d * 8);
+      if(dist > gap){
+        if(dx > 0) i.r = true; else i.l = true;
+      } else {
+        // Close enough — do a mini bounce-back, prepare for charge
+        this.state = 'charge_prep';
+        this.chDir = dx > 0 ? 1 : -1;
+        this._chHold = 250 + this.d * 60 + Math.random() * 150;
+      }
+      // Random jumps while stalking (personality-based)
+      if(Math.random() < this.P.jumpFreq * Math.max(this.d, 0.5) && me.onGnd)
+        i.u = true;
+
+    } else if(this.state === 'patrol'){
+      // Patrol back and forth — active even when not attacking
+      if(this._patrolTimer <= 0){
+        this._patrolDir *= -1;
+        this._patrolTimer = 600 + Math.random() * 800;
+        // Drift toward center
+        if((this._patrolDir < 0 && me.x < W * 0.35) ||
+           (this._patrolDir > 0 && me.x > W * 0.65)){
+          this._patrolDir *= -1;
+        }
+      }
+      if(this._patrolDir > 0) i.r = true; else i.l = true;
+      // After patrolling, often switch to stalking
+      if(this.timer <= 0) this.state = 'stalk';
+
+    } else if(this.state === 'retreat'){
+      // Move away from player, prefer arena center
+      if(dx > 0) i.l = true; else i.r = true;
+      // Jump to escape if cornered
+      if((nearLeft || nearRight) && me.onGnd && Math.random() < 0.05)
+        i.u = true;
+
+    } else if(this.state === 'charge_prep'){
       if(me.onGnd){
-        i.d=true;if(this.chDir>0)i.r=true;else i.l=true;
-        this._chHold-=dt;if(this._chHold<=0){i.d=false;this.state='approach';}
-      }else{if(dx>20)i.r=true;else if(dx<-20)i.l=true;}
+        i.d = true;
+        if(this.chDir > 0) i.r = true; else i.l = true;
+        this._chHold -= dt;
+        if(this._chHold <= 0){
+          i.d = false;
+          // After attacking, retreat briefly
+          this.state = 'retreat';
+          this._retreatTimer = 400 + Math.random() * 300;
+        }
+      } else {
+        // In air — steer toward foe
+        if(dx > 30) i.r = true; else if(dx < -30) i.l = true;
+      }
     }
+
     return i;
   }
 }
@@ -548,8 +755,14 @@ function initFight(){
   fightSec=99;fightMs=0;rndEnd=false;rndMsg='';rndTimer=0;
   matchDone=false;chargeLastSfx=0;_p2upPrev=false;
   Kp.l=Kp.r=Kp.u=Kp.d=false;
-  if(mode==='single')aiCtrl=new AI(aiDiff(stage));
-  SFX.switchBGM('fight');SFX.playRoundStart();scr='FIGHT';
+  if(mode==='single')aiCtrl=new AI(aiDiff(stage), p2ci);
+  particles.length=0; shakePow=0;
+  p1Perfect=true; p2Perfect=true;
+  p1Combo=0; p1ComboTimer=0;
+  p2Combo=0; p2ComboTimer=0;
+  SFX.switchBGM('fight');
+  startCountdown();
+  scr='FIGHT';
   updateMobileUI();
 }
 function collide(a,b){
@@ -557,10 +770,10 @@ function collide(a,b){
   if(dist>=minD||dist<0.1)return;
   const aS=Math.sqrt(a.vx*a.vx+a.vy*a.vy),bS=Math.sqrt(b.vx*b.vx+b.vy*b.vy);
   const relV=Math.sqrt((a.vx-b.vx)**2+(a.vy-b.vy)**2);
+  const midX=(a.x+b.x)/2, midY=(a.y+b.y)/2-20;
   if(relV>4.5){
-    // Real impact — both take damage proportional to opponent's incoming speed
-    if(aS>2.5)b.takeDamage(aS*DMG_MULT);
-    if(bS>2.5)a.takeDamage(bS*DMG_MULT);
+    if(aS>2.5)b.takeDamage(aS*DMG_MULT, midX, midY, true);   // a=p1 hits b=p2
+    if(bS>2.5)a.takeDamage(bS*DMG_MULT, midX, midY, false);  // b=p2 hits a=p1
     const nx=dx/dist,ny=dy/dist,bo=relV*0.44;
     a.vx=-nx*bo*0.88;a.vy=-ny*bo*0.48;b.vx=nx*bo*0.88;b.vy=ny*bo*0.48;
     a.onGnd=false;b.onGnd=false;
@@ -574,6 +787,26 @@ function collide(a,b){
   }
 }
 function updateFight(dt){
+  // Screen shake decay
+  if(shakePow>0){
+    shakePow*=0.80;
+    shakeX=(Math.random()-0.5)*shakePow;
+    shakeY=(Math.random()-0.5)*shakePow;
+    if(shakePow<0.3){shakePow=0;shakeX=0;shakeY=0;}
+  }
+  updateParticles(dt);
+
+  // Countdown before fight starts
+  if(cdActive){
+    cdTimer-=dt;
+    if(cdTimer<=0){
+      cdCount--;
+      if(cdCount>0){cdTimer=700;SFX.playCountdown();}
+      else{cdActive=false;SFX.playRoundStart();}
+    }
+    return; // freeze gameplay during countdown
+  }
+
   if(matchDone)return;
   if(rndEnd){
     rndTimer-=dt;
@@ -581,11 +814,18 @@ function updateFight(dt){
       rndEnd=false;
       if(rw[0]>=ROUNDS_WIN||rw[1]>=ROUNDS_WIN){endMatch(rndWinner);}
       else{p1=new Egg(210,p1ci,1);p2=new Egg(W-210,p2ci,-1);fightSec=99;fightMs=0;
-        if(mode==='single')aiCtrl=new AI(aiDiff(stage));SFX.playRoundStart();}
+        particles.length=0;
+        p1Perfect=true;p2Perfect=true;
+        p1Combo=0;p1ComboTimer=0;p2Combo=0;p2ComboTimer=0;
+        if(mode==='single')aiCtrl=new AI(aiDiff(stage), p2ci);
+        startCountdown();
+      }
     }
     return;
   }
   fightMs+=dt;
+  p1ComboTimer=Math.max(0,p1ComboTimer-dt); if(p1ComboTimer<=0)p1Combo=0;
+  p2ComboTimer=Math.max(0,p2ComboTimer-dt); if(p2ComboTimer<=0)p2Combo=0;
   if(fightMs>=1000){fightMs-=1000;fightSec=Math.max(0,fightSec-1);if(fightSec<=10&&fightSec>0)SFX.playCountdown();}
   if(fightSec<=0){endRound(p1.hp>p2.hp?'P1':p2.hp>p1.hp?'P2':'DRAW');return;}
   let p2i=mode==='single'?aiCtrl.update(p2,p1,dt):remInp;
@@ -613,64 +853,95 @@ function endMatch(winner){
 }
 
 // ════════════════════════════════════════════════
-//  PEERJS — with proper state management
+//  PEERJS — with proper STUN/ICE for cross-network
 // ════════════════════════════════════════════════
+const PEER_CFG = {
+  config: {
+    iceServers: [
+      {urls:'stun:stun.l.google.com:19302'},
+      {urls:'stun:stun1.l.google.com:19302'},
+      {urls:'stun:stun2.l.google.com:19302'},
+      {urls:'stun:stun.cloudflare.com:3478'},
+      {urls:'stun:global.stun.twilio.com:3478'},
+    ]
+  },
+  debug: 0
+};
+
 function initPeer(host){
   isHost=host; mpState='peer_init'; mpErr='';
   myPeerId=null; mpR1=false; mpR2=false;
-  peer=new Peer();
+  peer=new Peer(undefined, PEER_CFG);
   peer.on('open',id=>{
     myPeerId=id;
     mpState=isHost?'waiting_guest':'connecting';
+    console.log('[PeerJS] My ID:', id);
   });
-  peer.on('connection',c=>{conn=c;setupConn();});
+  peer.on('connection',c=>{
+    console.log('[PeerJS] Incoming connection from:', c.peer);
+    conn=c; setupConn();
+  });
   peer.on('error',e=>{
-    console.error('PeerJS peer error:',e);
+    console.error('[PeerJS] Error:', e.type, e);
     mpState='error';
     const types={
-      'peer-unavailable':'Ο host δεν βρέθηκε. Ο σύνδεσμος ίσως έληξε.',
-      'network':'Πρόβλημα δικτύου.',
-      'server-error':'PeerJS server error.',
-      'socket-error':'Socket error.',
+      'peer-unavailable':'Ο host δεν βρέθηκε.\nΒεβαιώσου ότι ο host έχει το παιχνίδι ανοιχτό.',
+      'network':'Πρόβλημα δικτύου. Έλεγξε τη σύνδεσή σου.',
+      'server-error':'Πρόβλημα με τον PeerJS server. Δοκίμασε ξανά.',
+      'socket-error':'Σφάλμα socket. Δοκίμασε ξανά.',
+      'socket-closed':'Η σύνδεση έκλεισε απροσδόκητα.',
       'unavailable-id':'ID μη διαθέσιμο.',
+      'ssl-unavailable':'SSL error.',
     };
-    mpErr=types[e.type]||`Σφάλμα: ${e.type||e.message||'άγνωστο'}`;
+    mpErr=types[e.type]||`Σφάλμα: ${e.type||'άγνωστο'}`;
+  });
+  peer.on('disconnected',()=>{
+    console.warn('[PeerJS] Disconnected from server, reconnecting...');
+    if(peer&&!peer.destroyed) peer.reconnect();
   });
 }
 
 function connectToPeer(id){
   if(!peer)return;
   mpState='connecting'; mpErr='';
+  console.log('[PeerJS] Connecting to:', id);
   conn=peer.connect(id,{reliable:true,serialization:'json'});
   setupConn();
-  // Timeout: if not connected in 12s show error
   if(_mpTimeout)clearTimeout(_mpTimeout);
   _mpTimeout=setTimeout(()=>{
     if(mpState==='connecting'){
       mpState='error';
-      mpErr='Δεν ήρθε απάντηση από τον host (timeout 12s). Ο host πρέπει να είναι online.';
+      mpErr='Timeout — ο host δεν απάντησε.\nΒεβαιώσου ότι ο host έχει το παιχνίδι ανοιχτό στον browser.';
     }
-  },12000);
+  },15000);
 }
 
 function setupConn(){
   conn.on('open',()=>{
     mpState='connected';
     if(_mpTimeout){clearTimeout(_mpTimeout);_mpTimeout=null;}
-    console.log('P2P connection open!');
+    console.log('[PeerJS] Connection open!');
+    // Exchange initial state
+    const myIdx=isHost?p1ci:p2ci;
+    conn.send({t:'char',i:myIdx});
   });
   conn.on('data',data=>{
     if(data.t==='inp') remInp=data.i;
-    else if(data.t==='char'){if(isHost)p2ci=data.i;else p1ci=data.i;}
-    else if(data.t==='rdy'){if(data.host)mpR1=data.v;else mpR2=data.v;checkReady();}
+    else if(data.t==='char'){
+      if(isHost)p2ci=data.i; else p1ci=data.i;
+    }
+    else if(data.t==='rdy'){
+      if(data.host)mpR1=data.v; else mpR2=data.v;
+      checkReady();
+    }
   });
   conn.on('error',e=>{
-    console.error('Conn error:',e);
+    console.error('[PeerJS] Conn error:',e);
     mpState='error'; mpErr='Η σύνδεση έκλεισε με σφάλμα.';
   });
   conn.on('close',()=>{
+    console.warn('[PeerJS] Connection closed');
     if(scr==='FIGHT'){
-      // Opponent disconnected during fight - show message
       rndMsg='Ο αντίπαλος αποσυνδέθηκε!';
       rndEnd=true; rndTimer=3000;
       setTimeout(()=>endMatch(isHost?'P1':'P2'),3100);
@@ -692,10 +963,11 @@ function mpRetry(){
   closePeer();
   if(isHost){initPeer(true);}
   else{
-    // Re-read room ID from URL
     const r=new URLSearchParams(window.location.search).get('room');
-    if(r){initPeer(false);peer.on('open',()=>connectToPeer(r));}
-    else{scr='MODE';updateMobileUI();}
+    if(r){
+      initPeer(false);
+      peer.on('open',()=>connectToPeer(r));
+    }else{scr='MODE';updateMobileUI();}
   }
 }
 
@@ -918,6 +1190,22 @@ function drawHUD(){
   }
   ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font='11px Arial';ctx.textAlign='right';
   ctx.fillText(SFX.isMuted()?'🔇 M':'M=mute',W-8,H-8);
+
+  // Combo display
+  if(p1Combo>=2){
+    ctx.save();ctx.textAlign='left';
+    ctx.font=`bold 17px 'Bebas Neue',Arial`;
+    ctx.fillStyle='#FFD700';ctx.shadowBlur=10;ctx.shadowColor='#FFD700';
+    ctx.fillText(`×${p1Combo} COMBO!`,p1x,by+bh+34);
+    ctx.restore();
+  }
+  if(p2Combo>=2){
+    ctx.save();ctx.textAlign='right';
+    ctx.font=`bold 17px 'Bebas Neue',Arial`;
+    ctx.fillStyle=CHARS[p2ci].col;ctx.shadowBlur=10;ctx.shadowColor=CHARS[p2ci].col;
+    ctx.fillText(`×${p2Combo} COMBO!`,p2x+bw,by+bh+34);
+    ctx.restore();
+  }
   if(rndEnd&&rndMsg){
     ctx.save();ctx.fillStyle='rgba(0,0,0,0.52)';ctx.fillRect(0,0,W,H);
     ctx.fillStyle='rgba(20,0,40,0.9)';ctx.fillRect(0,H/2-55,W,90);
@@ -926,7 +1214,20 @@ function drawHUD(){
     ctx.beginPath();ctx.moveTo(0,H/2+35);ctx.lineTo(W,H/2+35);ctx.stroke();
     ctx.textAlign='center';ctx.font=`bold 62px 'Bebas Neue',Arial`;
     ctx.fillStyle='#FFD700';ctx.shadowBlur=24;ctx.shadowColor='#FFD700';
-    ctx.fillText(rndMsg,W/2,H/2+20);ctx.shadowBlur=0;ctx.restore();
+    ctx.fillText(rndMsg,W/2,H/2+20);ctx.shadowBlur=0;
+    // PERFECT bonus
+    const p1won=rndWinner==='P1',p2won=rndWinner==='P2';
+    if(p1won&&p1Perfect){
+      ctx.font=`bold 24px 'Bebas Neue',Arial`;
+      ctx.fillStyle='#00FFAA';ctx.shadowBlur=18;ctx.shadowColor='#00FFAA';
+      ctx.fillText('✦ PERFECT ✦',W/2,H/2-70);ctx.shadowBlur=0;
+    }
+    if(p2won&&p2Perfect){
+      ctx.font=`bold 24px 'Bebas Neue',Arial`;
+      ctx.fillStyle='#00FFAA';ctx.shadowBlur=18;ctx.shadowColor='#00FFAA';
+      ctx.fillText('✦ PERFECT ✦',W/2,H/2-70);ctx.shadowBlur=0;
+    }
+    ctx.restore();
   }
 }
 function drawHBar(x,y,w,h,ratio,col,dir){
@@ -1062,115 +1363,170 @@ function drawCharSel(){
   ctx.fillStyle='rgba(255,230,100,0.8)';ctx.font='13px Arial';ctx.textAlign='center';
   ctx.fillText(CHARS[charCur].spe,W/2,descY);
 
-  // Controls guide — only on non-touch (touch users see actual buttons during fight)
+  // Controls guide — centered, raised higher
   if(!isTouchDev()){
-    drawCtrlGuide(W/2-142,H-126);
+    drawCtrlGuide(W/2-142,H-200);
   }
 
-  // Footer hints — below description, above mobile area
-  const footY=isTouchDev()?H-18:H-16;
+  // Footer hints
+  const footY=H-18;
   ctx.fillStyle='rgba(255,255,255,0.28)';ctx.font='13px Arial';ctx.textAlign='center';
   ctx.fillText('← →  επιλογή   ·   ENTER ή κλικ για επιβεβαίωση',W/2,footY);
-  if(mode==='single'){
-    ctx.fillStyle='rgba(255,140,40,0.6)';ctx.font='13px Arial';
-    ctx.fillText(`Αντίπαλος: ${CHARS[p2ci].name}  ·  Stage ${stage}  ·  ${MAP_CFG[p2ci].name}`,W/2,footY-18);
-  }
 }
 function drawMPLobby(){
   _menuBg();
-  ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font=`bold 42px 'Bebas Neue',Arial`;
-  ctx.textAlign='center';ctx.fillText('MULTIPLAYER LOBBY',W/2,58);
-  ctx.strokeStyle='rgba(26,127,196,0.4)';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(W/2-175,67);ctx.lineTo(W/2+175,67);ctx.stroke();
 
-  // ── ERROR state ──────────────────────────────
+  // ── Header ───────────────────────────────────
+  ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font=`bold 38px 'Bebas Neue',Arial`;
+  ctx.textAlign='center';ctx.fillText('MULTIPLAYER',W/2,50);
+  ctx.strokeStyle='rgba(26,127,196,0.35)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(W/2-130,58);ctx.lineTo(W/2+130,58);ctx.stroke();
+
+  // ── ERROR ────────────────────────────────────
   if(mpState==='error'){
     ctx.save();ctx.textAlign='center';
-    ctx.font='22px Arial';ctx.fillStyle='#E74C3C';
-    ctx.fillText('❌  Αποτυχία σύνδεσης',W/2,H/2-50);
-    // Wrap error message
-    const words=mpErr.split(' ');let line='';const maxW=500;
-    let lineY=H/2-15;
-    ctx.font='16px Arial';ctx.fillStyle='rgba(255,200,200,0.8)';
+    ctx.font='20px Arial';ctx.fillStyle='#E74C3C';ctx.shadowBlur=12;ctx.shadowColor='#E74C3C';
+    ctx.fillText('❌  Αποτυχία σύνδεσης',W/2,H/2-60);ctx.shadowBlur=0;
+    // Word-wrap error
+    const words=mpErr.split(' ');let line='',lineY=H/2-30;
+    ctx.font='14px Arial';ctx.fillStyle='rgba(255,200,200,0.8)';
     words.forEach(w=>{
       const test=line+w+' ';
-      if(ctx.measureText(test).width>maxW&&line){
-        ctx.fillText(line.trim(),W/2,lineY);lineY+=22;line=w+' ';
-      }else{line=test;}
+      if(ctx.measureText(test).width>480&&line){ctx.fillText(line.trim(),W/2,lineY);lineY+=20;line=w+' ';}
+      else line=test;
     });
     if(line.trim())ctx.fillText(line.trim(),W/2,lineY);
     ctx.restore();
-    _btn(W/2-120,H/2+50,110,48,'🔄 RETRY','#1A3060','#2E7FC4');
-    _btn(W/2+10, H/2+50,110,48,'← ΠΙΣΩ', '#3A1060','#8B30FF');
-    // Click areas handled in click2
-    ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='12px Arial';ctx.textAlign='center';
-    ctx.fillText('Βεβαιώσου ότι ο host έχει το παιχνίδι ανοιχτό πριν ανοίξεις το link.',W/2,H-30);
+    _btn(W/2-120,H/2+30,110,46,'🔄 RETRY','#1A3060','#2E7FC4');
+    _btn(W/2+10, H/2+30,110,46,'← ΠΙΣΩ', '#3A1060','#8B30FF');
+    ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font='12px Arial';ctx.textAlign='center';
+    ctx.fillText('ESC για επιστροφή',W/2,H-15);
     return;
   }
 
-  // ── HOST view ────────────────────────────────
-  if(isHost){
-    if(mpState==='peer_init'){
-      ctx.fillStyle='rgba(255,230,100,0.7)';ctx.font='18px Arial';ctx.textAlign='center';
-      ctx.fillText('⏳  Φόρτωση σύνδεσης PeerJS...',W/2,H/2);
-      return;
-    }
-    ctx.fillStyle='rgba(255,255,255,0.55)';ctx.font='16px Arial';ctx.textAlign='center';
-    ctx.fillText('Στείλε αυτό το link στον αντίπαλό σου:',W/2,110);
-    const roomUrl=myPeerId?(window.location.href.split('?')[0]+'?room='+myPeerId):'...';
-    _rr(52,120,W-202,46,8);ctx.fillStyle='rgba(0,10,30,0.6)';ctx.fill();
-    ctx.strokeStyle='rgba(79,195,247,0.3)';ctx.lineWidth=1;_rr(52,120,W-202,46,8);ctx.stroke();
-    ctx.fillStyle='#4FC3F7';ctx.font='12px monospace';ctx.textAlign='left';
-    const du=myPeerId?roomUrl.substring(0,60)+(roomUrl.length>60?'…':''):'⏳ Φόρτωση...';
-    ctx.fillText(du,65,149);
-    const cp=copiedFeedback>0;
-    _btn(W-152,120,112,46,cp?'✅ COPIED!':'📋 COPY',cp?'#0E4A28':'#0E3A5C',cp?'#2ECC71':'#1A7FC4');
-    const waitPulse=`rgba(255,230,100,${0.5+0.2*Math.sin(Date.now()*0.003)})`;
-    ctx.fillStyle=mpState==='connected'?'#2ECC71':waitPulse;ctx.font='19px Arial';ctx.textAlign='center';
-    ctx.fillText(mpState==='connected'?'✅ Ο αντίπαλος συνδέθηκε!':'⏳ Αναμονή αντιπάλου...',W/2,202);
-  }
-
-  // ── GUEST view ───────────────────────────────
-  if(!isHost){
-    if(mpState==='peer_init'||mpState==='connecting'){
-      // Animated connecting dots
+  // ── CONNECTING / WAITING ─────────────────────
+  if(mpState!=='connected'){
+    if(isHost){
+      // Show link to share
+      ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='14px Arial';ctx.textAlign='center';
+      ctx.fillText('Στείλε το link στον αντίπαλό σου',W/2,90);
+      const roomUrl=myPeerId?(window.location.href.split('?')[0]+'?room='+myPeerId):'';
+      _rr(50,100,W-210,44,8);ctx.fillStyle='rgba(0,10,30,0.6)';ctx.fill();
+      ctx.strokeStyle='rgba(79,195,247,0.25)';ctx.lineWidth=1;_rr(50,100,W-210,44,8);ctx.stroke();
+      if(myPeerId){
+        ctx.fillStyle='#4FC3F7';ctx.font='11px monospace';ctx.textAlign='left';
+        ctx.fillText(roomUrl.substring(0,65)+(roomUrl.length>65?'…':''),63,127);
+      }else{
+        const dots='.'.repeat(1+Math.floor(Date.now()/400)%3);
+        ctx.fillStyle='rgba(255,230,100,0.6)';ctx.font='13px Arial';ctx.textAlign='center';
+        ctx.fillText('Φόρτωση'+dots,W/2-50,127);
+      }
+      const cp=copiedFeedback>0;
+      _btn(W-152,100,114,44,cp?'✅ OK':'📋 COPY',cp?'#0E4A28':'#0E3A5C',cp?'#2ECC71':'#1A7FC4');
+      // Status
+      const pulse=`rgba(255,230,100,${0.55+0.18*Math.sin(Date.now()*0.003)})`;
+      ctx.fillStyle=pulse;ctx.font='18px Arial';ctx.textAlign='center';
+      ctx.fillText('⏳  Αναμονή αντιπάλου...',W/2,175);
+    }else{
       const dots='.'.repeat(1+Math.floor(Date.now()/500)%3);
       const pulse=`rgba(255,220,80,${0.6+0.2*Math.sin(Date.now()*0.004)})`;
-      ctx.fillStyle=pulse;ctx.font='24px Arial';ctx.textAlign='center';
-      ctx.fillText(mpState==='peer_init'?`⏳  Σύνδεση στον server${dots}`:`⏳  Σύνδεση με τον host${dots}`,W/2,H/2-20);
-      ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='14px Arial';
-      ctx.fillText('Βεβαιώσου ότι ο host έχει το παιχνίδι ανοιχτό.',W/2,H/2+20);
-      return;
+      ctx.fillStyle=pulse;ctx.font='20px Arial';ctx.textAlign='center';
+      ctx.fillText(`⏳  Σύνδεση${dots}`,W/2,H/2);
+      ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='13px Arial';
+      ctx.fillText('Βεβαιώσου ότι ο host έχει το παιχνίδι ανοιχτό',W/2,H/2+28);
     }
-    if(mpState==='connected'){
-      ctx.fillStyle='#2ECC71';ctx.font='22px Arial';ctx.textAlign='center';
-      ctx.fillText('✅  Συνδέθηκες!',W/2,175);
-    }
+    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font='12px Arial';ctx.textAlign='center';
+    ctx.fillText('ESC για επιστροφή',W/2,H-15);
+    return;
   }
 
-  // ── CONNECTED: char select + ready ───────────
-  if(mpState==='connected'){
-    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='14px Arial';ctx.textAlign='center';
-    ctx.fillText('Επίλεξε χαρακτήρα (← →) και πάτα READY',W/2,252);
-    ctx.fillStyle='rgba(255,200,80,0.55)';ctx.font='12px Arial';
-    ctx.fillText(`🗺  Map: ${MAP_CFG[p1ci].name}  ·  χαρακτήρας host`,W/2,270);
-    const pc=CHARS[p1ci],cx2=W/2,cy2=300,r2=26;
-    const g2=ctx.createRadialGradient(cx2-5,cy2-8,3,cx2,cy2,r2);
-    g2.addColorStop(0,_lx(pc.col,45));g2.addColorStop(1,pc.shade);
-    ctx.fillStyle=g2;ctx.beginPath();ctx.ellipse(cx2,cy2,r2*0.82,r2,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.beginPath();ctx.ellipse(cx2-6,cy2-8,r2*0.3,r2*0.18,-0.4,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.45)';ctx.font='13px Arial';ctx.textAlign='center';
-    ctx.fillText(pc.name,cx2,cy2+r2+14);
-    const myR=isHost?mpR1:mpR2,oppR=isHost?mpR2:mpR1;
-    ctx.fillStyle=myR?'#2ECC71':'rgba(255,255,255,0.25)';ctx.font='16px Arial';
-    ctx.fillText(`ΕΣΥ: ${myR?'READY ✅':'ΟΧΙ ΕΤΟΙΜΟΣ'}`,W/2-130,352);
-    ctx.fillStyle=oppR?'#2ECC71':'rgba(255,255,255,0.25)';
-    ctx.fillText(`ΑΝΤΙΠΑΛΟΣ: ${oppR?'READY ✅':'ΟΧΙ ΕΤΟΙΜΟΣ'}`,W/2+80,352);
-    _btn(W/2-115,390,230,52,myR?'✅ READY!':'READY',myR?'#0E4A28':'#1E2E1E',myR?'#2ECC71':null);
-  }
+  // ── CONNECTED — Shared character select ──────
+  // My index = host→p1ci, guest→p2ci
+  const myCI = isHost?p1ci:p2ci;
+  const oppCI= isHost?p2ci:p1ci;
+  const myR  = isHost?mpR1:mpR2;
+  const oppR = isHost?mpR2:mpR1;
 
-  ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font='13px Arial';ctx.textAlign='center';
-  ctx.fillText(showCtrlBtns()?'Κουμπί ΠΙΣΩ για επιστροφή':'ESC για επιστροφή',W/2,H-15);
+  const cw2=130,ch2=152,sx2=(W-6*cw2)/2,sy2=72;
+
+  CHARS.forEach((c,i)=>{
+    const cx=sx2+i*cw2+cw2/2, cy=sy2+ch2/2-12;
+    const isMine = i===myCI, isOpp = i===oppCI;
+    const sel = isMine||isOpp;
+
+    // Card background
+    _rr(sx2+i*cw2+3,sy2+3,cw2-6,ch2-6,10);
+    ctx.fillStyle=sel?'rgba(155,48,255,0.12)':'rgba(255,255,255,0.02)';ctx.fill();
+
+    // Border — my selection in gold, opponent in their color
+    if(isMine){
+      ctx.save();ctx.shadowBlur=18;ctx.shadowColor='#FFD700';
+      ctx.strokeStyle='#FFD700';ctx.lineWidth=2;
+      _rr(sx2+i*cw2+3,sy2+3,cw2-6,ch2-6,10);ctx.stroke();
+      ctx.restore();
+    } else if(isOpp){
+      ctx.strokeStyle=c.col+'88';ctx.lineWidth=1.5;
+      _rr(sx2+i*cw2+3,sy2+3,cw2-6,ch2-6,10);ctx.stroke();
+    } else {
+      ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=0.8;
+      _rr(sx2+i*cw2+3,sy2+3,cw2-6,ch2-6,10);ctx.stroke();
+    }
+
+    // Egg
+    const r=32;
+    const g=ctx.createRadialGradient(cx-r*0.22,cy-r*0.3,4,cx,cy,r);
+    g.addColorStop(0,_lx(c.col,50));g.addColorStop(0.55,c.col);g.addColorStop(1,c.shade);
+    ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(cx,cy,r*0.82,r,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.14)';
+    ctx.beginPath();ctx.ellipse(cx-r*0.18,cy-r*0.32,r*0.30,r*0.17,-0.4,0,Math.PI*2);ctx.fill();
+
+    // Name
+    ctx.fillStyle=isMine?'#FFD700':isOpp?c.col:'rgba(255,255,255,0.45)';
+    ctx.font=sel?`bold 13px 'Bebas Neue',Arial`:`12px 'Bebas Neue',Arial`;
+    ctx.textAlign='center';ctx.fillText(c.name,cx,sy2+ch2-2);
+
+    // Cursor arrows
+    ctx.font='12px Arial';
+    if(isMine){
+      ctx.save();ctx.fillStyle='#FFD700';ctx.shadowBlur=8;ctx.shadowColor='#FFD700';
+      ctx.fillText('▼',cx,sy2-4); // MY cursor = gold arrow above
+      ctx.restore();
+      ctx.fillStyle='rgba(255,215,0,0.55)';ctx.font='10px Arial';
+      ctx.fillText('ΕΣΥ',cx,sy2-16);
+    }
+    if(isOpp){
+      ctx.save();ctx.fillStyle=c.col;ctx.shadowBlur=6;ctx.shadowColor=c.col;
+      ctx.fillText('▲',cx,sy2+ch2+16); // OPP cursor = colored arrow below
+      ctx.restore();
+      ctx.fillStyle=c.col+'99';ctx.font='10px Arial';
+      ctx.fillText('ΑΝΤΙΠΑΛΟΣ',cx,sy2+ch2+28);
+    }
+  });
+
+  // Description of MY selected char
+  const descY=sy2+ch2+46;
+  _rr(W/2-190,descY-14,380,26,6);ctx.fillStyle='rgba(0,0,0,0.38)';ctx.fill();
+  ctx.fillStyle='rgba(255,230,100,0.75)';ctx.font='13px Arial';ctx.textAlign='center';
+  ctx.fillText(CHARS[myCI].spe,W/2,descY);
+
+  // Map info — compact, one line
+  ctx.fillStyle='rgba(255,255,255,0.25)';ctx.font='12px Arial';
+  ctx.fillText(`🗺  ${MAP_CFG[p1ci].name}`,W/2,descY+18);
+
+  // Ready indicators — compact
+  const readyY=H-94;
+  ctx.fillStyle=myR?'#2ECC71':'rgba(255,255,255,0.28)';
+  ctx.font=`bold 15px 'Bebas Neue',Arial`;ctx.textAlign='left';
+  ctx.fillText(`▸ ΕΣΥ: ${myR?'READY ✅':'ΟΧΙ ΕΤΟΙΜΟΣ'}`,sx2,readyY);
+  ctx.fillStyle=oppR?'#2ECC71':'rgba(255,255,255,0.28)';
+  ctx.textAlign='right';
+  ctx.fillText(`${oppR?'✅ READY':'ΟΧΙ ΕΤΟΙΜΟΣ'} :ΑΝΤΙΠΑΛΟΣ ◂`,sx2+6*cw2,readyY);
+
+  _btn(W/2-115,H-82,230,48,myR?'✅ READY!':'READY',myR?'#0E4A28':'#1A3060',myR?'#2ECC71':'#1A7FC4');
+
+  // Footer
+  ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='12px Arial';ctx.textAlign='center';
+  ctx.fillText('← →  επιλογή   ·   ENTER = READY   ·   ESC = πίσω',W/2,H-15);
 }
 function drawStageClear(){
   _menuBg();
@@ -1253,9 +1609,30 @@ function loop(ts){
     case'CHARSEL':   drawCharSel();break;
     case'MPLOBY':    drawMPLobby();break;
     case'FIGHT':
-      updateFight(dt);drawBG();
+      updateFight(dt);
+      ctx.save();
+      ctx.translate(shakeX,shakeY);
+      drawBG();
       p1.draw(ctx);p2.draw(ctx);
-      drawHUD();drawCtrlRef();break;
+      drawParticles();
+      ctx.restore();
+      drawHUD();drawCtrlRef();
+      // Countdown overlay
+      if(cdActive&&cdCount>0){
+        ctx.save();
+        ctx.fillStyle='rgba(0,0,0,0.45)';ctx.fillRect(0,0,W,H);
+        ctx.textAlign='center';
+        ctx.font=`bold 140px 'Bebas Neue',Arial`;
+        ctx.fillStyle='#FFD700';
+        ctx.shadowBlur=50;ctx.shadowColor='#FFD700';
+        ctx.fillText(cdCount,W/2,H/2+48);
+        ctx.shadowBlur=0;
+        ctx.font=`bold 22px 'Bebas Neue',Arial`;
+        ctx.fillStyle='rgba(255,255,255,0.6)';
+        ctx.fillText('ΕΤΟΙΜΟΣ;',W/2,H/2-60);
+        ctx.restore();
+      }
+      break;
     case'STGCLEAR':  drawStageClear();break;
     case'GAMEOVER':  drawGameOver();break;
     case'MATCHOVER': drawMatchOver();break;
@@ -1271,16 +1648,24 @@ function checkUrl(){
   if(r){
     mode='multi';isHost=false;scr='MPLOBY';
     mpState='peer_init'; mpErr='';
-    peer=new Peer();
-    peer.on('open',()=>{
+    peer=new Peer(undefined, PEER_CFG);
+    peer.on('open',id=>{
+      myPeerId=id;
       mpState='connecting';
+      console.log('[PeerJS] Guest ID:', id, '→ connecting to', r);
       connectToPeer(r);
     });
     peer.on('error',e=>{
+      console.error('[PeerJS] Guest error:', e.type);
       mpState='error';
-      const types={'peer-unavailable':'Ο host δεν βρέθηκε. Ο host πρέπει να έχει το παιχνίδι ανοιχτό.','network':'Πρόβλημα δικτύου.','server-error':'Server error.'};
+      const types={
+        'peer-unavailable':'Ο host δεν βρέθηκε. Ο host πρέπει να έχει το παιχνίδι ανοιχτό.',
+        'network':'Πρόβλημα δικτύου.',
+        'server-error':'Server error. Δοκίμασε ξανά.',
+      };
       mpErr=types[e.type]||`Σφάλμα: ${e.type}`;
     });
+    peer.on('disconnected',()=>{if(peer&&!peer.destroyed)peer.reconnect();});
   }
 }
 
