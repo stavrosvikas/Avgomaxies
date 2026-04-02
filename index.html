@@ -241,7 +241,10 @@ const _li=new Image();_li.onload=()=>logoImg=_li;_li.src='assets/logo.png';
 //  MULTIPLAYER
 // ════════════════════════════════════════════════
 let peer=null,conn=null,isHost=false,myPeerId=null,mpR1=false,mpR2=false;
+let _mpMatchWinner=''; // 'P1'=host won, 'P2'=guest won, ''=none yet
 let remInp={l:false,r:false,u:false,d:false};
+// Jump edge-detection: separate prev-state per egg
+let _prevP1u=false, _prevP2u=false;
 // Connection states: idle | peer_init | waiting_guest | connecting | connected | error
 let mpState='idle', mpErr='', _mpTimeout=null;
 
@@ -249,7 +252,7 @@ let mpState='idle', mpErr='', _mpTimeout=null;
 //  INPUT
 // ════════════════════════════════════════════════
 const K={l:false,r:false,u:false,d:false},Kp={l:false,r:false,u:false,d:false};
-let _p2upPrev=false;
+// input state (no _p2upPrev — replaced by _prevP1u/_prevP2u)
 
 function bindBtn(id,k){
   const el=document.getElementById(id);
@@ -297,7 +300,7 @@ function onKey(e){
     return;
   }
   if(scr==='STGCLEAR'&&(k===' '||k==='Enter')){initFight();return;}
-  if(scr==='MATCHOVER'&&(k===' '||k==='Enter')){scr='CHARSEL';rw=[0,0];return;}
+  if(scr==='MATCHOVER'&&(k===' '||k==='Enter')){if(mode==='multi'){scr='MPLOBY';if(mpState!=='connected'){mpState='error';mpErr='Η σύνδεση έκλεισε. Μοιράσου νέο link.';}}else{scr='CHARSEL';}rw=[0,0];return;}
   if(scr==='GAMEOVER'&&collectNick){
     if(k==='Enter'&&nickInput.length>0){saveNick();return;}
     if(k==='Backspace'){nickInput=nickInput.slice(0,-1);return;}
@@ -362,7 +365,7 @@ canvas.addEventListener('touchstart',e=>{
   SFX.resume();
   if(scr==='INTRO'){toMode();return;}
   if(scr==='STGCLEAR'){initFight();return;}
-  if(scr==='MATCHOVER'){scr='CHARSEL';rw=[0,0];return;}
+  if(scr==='MATCHOVER'){_goAfterMatch();return;}
   const t=e.changedTouches[0],rect=canvas.getBoundingClientRect();
   click2((t.clientX-rect.left)*W/rect.width,(t.clientY-rect.top)*H/rect.height);
 },{passive:true});
@@ -370,9 +373,20 @@ canvas.addEventListener('touchstart',e=>{
 function handlePtr(e){
   if(scr==='INTRO'){toMode();return;}
   if(scr==='STGCLEAR'){initFight();return;}
-  if(scr==='MATCHOVER'){scr='CHARSEL';rw=[0,0];return;}
+  if(scr==='MATCHOVER'){_goAfterMatch();return;}
   const rect=canvas.getBoundingClientRect();
   click2((e.clientX-rect.left)*W/rect.width,(e.clientY-rect.top)*H/rect.height);
+}
+
+function _goAfterMatch(){
+  rw=[0,0];
+  if(mode==='multi'){
+    scr='MPLOBY';
+    if(mpState!=='connected'){mpState='error';mpErr='Η σύνδεση έκλεισε. Μοιράσου νέο link.';}
+    updateMobileUI();
+  }else{
+    scr='CHARSEL';
+  }
 }
 function click2(x,y){
   if(scr==='MODE'){
@@ -753,8 +767,8 @@ let p1=null,p2=null,aiCtrl=null,fightSec=99,fightMs=0;
 function initFight(){
   p1=new Egg(210,p1ci,1);p2=new Egg(W-210,p2ci,-1);
   fightSec=99;fightMs=0;rndEnd=false;rndMsg='';rndTimer=0;
-  matchDone=false;chargeLastSfx=0;_p2upPrev=false;
-  Kp.l=Kp.r=Kp.u=Kp.d=false;
+  matchDone=false;chargeLastSfx=0;
+  _prevP1u=false;_prevP2u=false;
   if(mode==='single')aiCtrl=new AI(aiDiff(stage), p2ci);
   particles.length=0; shakePow=0;
   p1Perfect=true; p2Perfect=true;
@@ -828,27 +842,60 @@ function updateFight(dt){
   p2ComboTimer=Math.max(0,p2ComboTimer-dt); if(p2ComboTimer<=0)p2Combo=0;
   if(fightMs>=1000){fightMs-=1000;fightSec=Math.max(0,fightSec-1);if(fightSec<=10&&fightSec>0)SFX.playCountdown();}
   if(fightSec<=0){endRound(p1.hp>p2.hp?'P1':p2.hp>p1.hp?'P2':'DRAW');return;}
-  let p2i=mode==='single'?aiCtrl.update(p2,p1,dt):remInp;
-  const p1u=K.u&&!Kp.u,p2u=p2i.u&&!_p2upPrev;
-  _p2upPrev=p2i.u;Kp.u=K.u;Kp.l=K.l;Kp.r=K.r;Kp.d=K.d;
-  p1.update(K.l,K.r,p1u,K.d,dt,true);p2.update(p2i.l,p2i.r,p2u,p2i.d,dt,false);
+
+  // ── Input routing ────────────────────────────
+  // p1 is always HOST egg, p2 is always GUEST egg.
+  // HOST: local K → p1, received remInp → p2
+  // GUEST: local K → p2, received remInp → p1
+  const myInp={l:K.l,r:K.r,u:K.u,d:K.d};
+  let p1i,p2i;
+  if(mode==='single'){
+    p1i=myInp;
+    p2i=aiCtrl.update(p2,p1,dt);
+  }else if(isHost){
+    p1i=myInp;   // host controls left/p1
+    p2i=remInp;  // guest's received inputs control right/p2
+  }else{
+    p1i=remInp;  // host's received inputs control left/p1
+    p2i=myInp;   // guest controls right/p2
+  }
+
+  // Jump edge-detect: one prev-state tracker per egg
+  const p1u=p1i.u&&!_prevP1u;
+  const p2u=p2i.u&&!_prevP2u;
+  _prevP1u=p1i.u;
+  _prevP2u=p2i.u;
+
+  p1.update(p1i.l,p1i.r,p1u,p1i.d,dt,isHost||mode==='single');
+  p2.update(p2i.l,p2i.r,p2u,p2i.d,dt,!isHost&&mode==='multi');
   collide(p1,p2);
   if(p1.dead||p2.dead)endRound(p1.dead?'P2':'P1');
-  if(mode==='multi'&&conn&&conn.open)conn.send({t:'inp',i:{l:K.l,r:K.r,u:K.u,d:K.d}});
+  // Send MY local inputs to opponent
+  if(mode==='multi'&&conn&&conn.open)conn.send({t:'inp',i:myInp});
 }
 function endRound(winner){
   rndWinner=winner;
-  if(winner==='P1'){rw[0]++;rndMsg='PLAYER 1 WINS!';}
-  else if(winner==='P2'){rw[1]++;rndMsg='PLAYER 2 WINS!';}
-  else rndMsg='DRAW!';
+  if(winner==='DRAW'){
+    rndMsg='DRAW!';
+    // No points on draw, just restart round
+  }else if(winner==='P1'){
+    rw[0]++;
+    rndMsg=mode==='multi'?(isHost?'ΕΣΥ ΚΕΡΔΙΣΕΣ!':'Ο ΑΝΤΙΠΑΛΟΣ ΚΕΡΔΙΣΕ'):'PLAYER 1 WINS!';
+  }else{
+    rw[1]++;
+    rndMsg=mode==='multi'?(!isHost?'ΕΣΥ ΚΕΡΔΙΣΕΣ!':'Ο ΑΝΤΙΠΑΛΟΣ ΚΕΡΔΙΣΕ'):'PLAYER 2 WINS!';
+  }
   rndEnd=true;rndTimer=2600;SFX.playWin();
 }
 function endMatch(winner){
   matchDone=true;SFX.stopBGM();
+  _mpMatchWinner=winner;
   if(mode==='single'){
     if(winner==='P1'){streak++;if(streak>hs)hs=streak;stage++;p2ci=Math.floor(Math.random()*6);scr='STGCLEAR';SFX.playWin();}
     else{scr='GAMEOVER';collectNick=true;nickInput='';SFX.playLose();}
-  }else{scr='MATCHOVER';mpR1=false;mpR2=false;rw=[0,0];}
+  }else{
+    scr='MATCHOVER';mpR1=false;mpR2=false;rw=[0,0];
+  }
   updateMobileUI();
 }
 
@@ -896,8 +943,8 @@ function initPeer(host){
     mpErr=types[e.type]||`Σφάλμα: ${e.type||'άγνωστο'}`;
   });
   peer.on('disconnected',()=>{
-    console.warn('[PeerJS] Disconnected from server, reconnecting...');
-    if(peer&&!peer.destroyed) peer.reconnect();
+    // Do NOT auto-reconnect — it can assign a different peer ID, breaking the shared link
+    console.warn('[PeerJS] Disconnected from signaling server');
   });
 }
 
@@ -940,12 +987,13 @@ function setupConn(){
     mpState='error'; mpErr='Η σύνδεση έκλεισε με σφάλμα.';
   });
   conn.on('close',()=>{
-    console.warn('[PeerJS] Connection closed');
+    console.warn('[PeerJS] Connection closed, scr='+scr);
+    mpState='waiting_guest'; // host goes back to waiting if peer reconnects
     if(scr==='FIGHT'){
       rndMsg='Ο αντίπαλος αποσυνδέθηκε!';
-      rndEnd=true; rndTimer=3000;
-      setTimeout(()=>endMatch(isHost?'P1':'P2'),3100);
-    }else if(scr==='MPLOBY'){
+      rndEnd=true; rndTimer=2600;
+      setTimeout(()=>endMatch(isHost?'P1':'P2'),2700);
+    }else if(scr==='MPLOBY'||scr==='MATCHOVER'){
       mpState='error'; mpErr='Η σύνδεση έκλεισε.';
     }
   });
@@ -1582,15 +1630,41 @@ function drawGameOver(){
 }
 function drawMatchOver(){
   _menuBg();
-  const w=rw[0]>rw[1]?'PLAYER 1':'PLAYER 2';
-  const wcol=rw[0]>rw[1]?CHARS[p1ci].col:CHARS[p2ci].col;
   ctx.save();ctx.textAlign='center';
-  ctx.font=`bold 62px 'Bebas Neue',Arial`;ctx.fillStyle=wcol;
-  ctx.shadowBlur=30;ctx.shadowColor=wcol;ctx.fillText(w,W/2,H*0.34);ctx.shadowBlur=0;
-  ctx.font=`bold 38px 'Bebas Neue',Arial`;ctx.fillStyle='rgba(255,255,255,0.85)';
-  ctx.fillText('ΝΙΚΗΣΕ!',W/2,H*0.46);
-  ctx.font='30px Arial';ctx.fillText('🥇',W/2,H*0.56);
-  if(blink){ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font=`bold 16px 'Bebas Neue',Arial`;ctx.fillText('ΠΑΤΑ ΓΙΑ ΕΠΑΝΕΝΑΡΞΗ',W/2,H*0.74);}
+
+  // Determine winner from THIS player's perspective
+  let headline, subline, col;
+  if(mode==='multi'){
+    // _mpMatchWinner: 'P1'=host won, 'P2'=guest won
+    const iWon=(_mpMatchWinner==='P1'&&isHost)||(_mpMatchWinner==='P2'&&!isHost);
+    if(iWon){
+      headline='ΕΣΥ ΚΕΡΔΙΣΕΣ!';
+      col='#2ECC71';subline='🏆';
+      SFX.playWin();
+    }else if(_mpMatchWinner==='DRAW'){
+      headline='ΙΣΟΠΑΛΙΑ!';col='#FFD700';subline='🤝';
+    }else{
+      headline='ΕΧΑΣΕΣ';col='#E74C3C';subline='💀';
+      SFX.playLose();
+    }
+  }else{
+    // Single player — show character name
+    const w=_mpMatchWinner==='P1'?'PLAYER 1':'PLAYER 2';
+    const wcol=_mpMatchWinner==='P1'?CHARS[p1ci].col:CHARS[p2ci].col;
+    headline=w;col=wcol;subline='🥇';
+  }
+
+  ctx.font=`bold 72px 'Bebas Neue',Arial`;ctx.fillStyle=col;
+  ctx.shadowBlur=32;ctx.shadowColor=col;ctx.fillText(headline,W/2,H*0.34);ctx.shadowBlur=0;
+  if(mode!=='multi'){
+    ctx.font=`bold 36px 'Bebas Neue',Arial`;ctx.fillStyle='rgba(255,255,255,0.85)';
+    ctx.fillText('ΝΙΚΗΣΕ!',W/2,H*0.46);
+  }
+  ctx.font='36px Arial';ctx.fillText(subline,W/2,H*0.57);
+  if(blink){
+    ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font=`bold 16px 'Bebas Neue',Arial`;
+    ctx.fillText(mode==='multi'?'ΠΑΤΑ ΓΙΑ ΝΕΟΝ ΑΓΩΝΑ':'ΠΑΤΑ ΓΙΑ ΕΠΑΝΕΝΑΡΞΗ',W/2,H*0.74);
+  }
   ctx.restore();
 }
 
@@ -1665,7 +1739,9 @@ function checkUrl(){
       };
       mpErr=types[e.type]||`Σφάλμα: ${e.type}`;
     });
-    peer.on('disconnected',()=>{if(peer&&!peer.destroyed)peer.reconnect();});
+    peer.on('disconnected',()=>{
+      console.warn('[PeerJS] Guest disconnected from signaling server');
+    });
   }
 }
 
