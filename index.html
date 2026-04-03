@@ -3,9 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Egg Battle">
+<meta name="theme-color" content="#04000C">
 <link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/favicon.png">
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;700&subset=greek&display=block" as="style">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;700&subset=greek&display=block">
 <title>Egg Battle</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -36,7 +45,7 @@ body{display:flex;align-items:center;justify-content:center;}
   position:fixed;top:12px;left:12px;z-index:30;
   padding:8px 18px;border-radius:20px;
   background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.25);
-  color:rgba(255,255,255,0.8);font-family:'Bebas Neue',Arial;font-size:17px;
+  color:rgba(255,255,255,0.8);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:1px;
   cursor:pointer;pointer-events:all;display:none;
   transition:background 0.1s;
 }
@@ -61,11 +70,11 @@ body{display:flex;align-items:center;justify-content:center;}
 }
 #nick-overlay.vis{display:flex;}
 #nick-overlay label{
-  font-family:'Bebas Neue',Arial;font-size:15px;letter-spacing:3px;
+  font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:2px;font-weight:600;
   color:rgba(255,255,255,0.45);
 }
 #nick-inp{
-  font-size:30px;letter-spacing:5px;font-family:'Bebas Neue',Arial;
+  font-size:22px;letter-spacing:4px;font-family:'JetBrains Mono',monospace;font-weight:700;
   text-transform:uppercase;
   background:rgba(16,0,34,0.95);border:2px solid rgba(155,48,255,0.65);
   color:#FFD700;text-align:center;padding:12px 24px;border-radius:10px;
@@ -73,7 +82,7 @@ body{display:flex;align-items:center;justify-content:center;}
 }
 #nick-inp::placeholder{color:rgba(255,255,255,0.22);letter-spacing:2px;}
 #nick-ok{
-  font-family:'Bebas Neue',Arial;font-size:21px;letter-spacing:2px;
+  font-family:'JetBrains Mono',monospace;font-size:16px;letter-spacing:1px;font-weight:700;
   background:rgba(46,204,113,0.22);border:2px solid rgba(46,204,113,0.55);
   color:#2ECC71;padding:12px 48px;border-radius:10px;
   cursor:pointer;-webkit-appearance:none;
@@ -82,11 +91,11 @@ body{display:flex;align-items:center;justify-content:center;}
 #ro{
   display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#060010;
   z-index:999;flex-direction:column;align-items:center;justify-content:center;
-  color:white;text-align:center;gap:14px;font-family:'Bebas Neue',Arial;
+  color:white;text-align:center;gap:14px;font-family:'JetBrains Mono',monospace;
 }
 #ro .ri{font-size:72px;animation:spin 2s ease-in-out infinite alternate;}
-#ro .rt{font-size:26px;color:#FFD700;letter-spacing:2px;}
-#ro .rs{font-size:15px;color:rgba(255,255,255,0.5);}
+#ro .rt{font-size:20px;color:#FFD700;letter-spacing:2px;font-family:'JetBrains Mono',monospace;}
+#ro .rs{font-size:13px;color:rgba(255,255,255,0.5);font-family:'JetBrains Mono',monospace;}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(90deg)}}
 @media (orientation:portrait) and (hover:none) and (pointer:coarse){
   #ro{display:flex;}
@@ -138,12 +147,12 @@ function aiDiff(s){
 //  CHARACTERS
 // ════════════════════════════════════════════════
 const CHARS=[
-  {id:'character01',name:'Sunny', col:'#F5E230',shade:'#B09800',spe:'Ισορροπημένος. Ιδανικός για αρχάριους.'},
-  {id:'character02',name:'Bruno', col:'#9B6B3A',shade:'#5C3418',spe:'Βαρύς, αργός, τεράστια damage.'},
-  {id:'character03',name:'Alba',  col:'#F2E8D0',shade:'#C8A880',spe:'Ελαφρύς και εξαιρετικά γρήγορος.'},
-  {id:'character04',name:'Nero',  col:'#1E1E1E',shade:'#0A0A0A',spe:'Μυστηριώδης. Επίθεση +30% damage.'},
-  {id:'character05',name:'Azure', col:'#2E8FD8',shade:'#1050A0',spe:'Τεχνικός. Ακριβής charge control.'},
-  {id:'character06',name:'Rosso', col:'#E03030',shade:'#8A1010',spe:'Επιθετικός. Burn effect στη σύγκρουση.'},
+  {id:'character01',name:'SUNNY',  col:'#F5E230',shade:'#B09800'},
+  {id:'character02',name:'BRUNO',  col:'#9B6B3A',shade:'#5C3418'},
+  {id:'character03',name:'ALBA',   col:'#F2E8D0',shade:'#C8A880'},
+  {id:'character04',name:'NERO',   col:'#1E1E1E',shade:'#0A0A0A'},
+  {id:'character05',name:'ΜΗΤΣΟΦΛΑΚΗΣ',col:'#2E8FD8',shade:'#1050A0'},
+  {id:'character06',name:'ΑΥΓΟΥΜΠΑΣ',col:'#E03030',shade:'#8A1010'},
 ];
 
 // ════════════════════════════════════════════════
@@ -494,11 +503,27 @@ function handleBack(){
 }
 window.addEventListener('resize',resize);resize();
 
-canvas.addEventListener('click',e=>{SFX.resume();handlePtr(e);});
+// ── Fullscreen: request on first user gesture ────────────────────────────────
+let _fsRequested=false;
+function requestFS(){
+  if(_fsRequested)return;
+  _fsRequested=true;
+  const el=document.documentElement;
+  const req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen;
+  if(req){
+    req.call(el).catch(()=>{});
+  }
+  // Lock to landscape on supported browsers (Android Chrome)
+  if(screen.orientation&&screen.orientation.lock){
+    screen.orientation.lock('landscape').catch(()=>{});
+  }
+}
+
+canvas.addEventListener('click',e=>{SFX.resume();requestFS();handlePtr(e);});
 // ── Swipe detection for char select ──────────────
 let _swipeX=null,_swipeY=null;
 canvas.addEventListener('touchstart',e=>{
-  SFX.resume();
+  SFX.resume();requestFS();
   if(scr==='INTRO'){toMode();return;}
   if(scr==='STGCLEAR'){initFight();return;}
   if(scr==='MATCHOVER'){_goAfterMatch();return;}
@@ -596,7 +621,9 @@ function ib(x,y,bx,by,bw,bh){return x>=bx&&x<=bx+bw&&y>=by&&y<=by+bh;}
 //  NAVIGATION
 // ════════════════════════════════════════════════
 function toMode(){scr='MODE';SFX.switchBGM('menu');updateMobileUI();}
-function startSingle(){mode='single';stage=1;streak=0;p2ci=Math.floor(Math.random()*6);charCur=0;scr='CHARSEL';updateMobileUI();}
+// Picks a random opponent that is never the same as the player's character
+function randOpponent(myIdx){ let r; do{r=Math.floor(Math.random()*6);}while(r===myIdx); return r; }
+function startSingle(){mode='single';stage=1;streak=0;p2ci=randOpponent(p1ci);charCur=0;scr='CHARSEL';updateMobileUI();}
 function mpShareOrCopy(url){
   if(navigator.share&&isTouchDev()){
     navigator.share({title:'Egg Battle 🥚',text:'Έλα να παίξουμε!',url})
@@ -609,8 +636,10 @@ function mpShareOrCopy(url){
 function startMulti(){mode='multi';scr='MPLOBY';initPeer(true);updateMobileUI();}
 function confirmChar(){
   p1ci=charCur;
-  if(mode==='single'){rw=[0,0];matchDone=false;initFight();}
-  else{scr='MPLOBY';updateBackBtn();if(conn&&conn.open)conn.send({t:'char',i:p1ci});}
+  if(mode==='single'){
+    p2ci=randOpponent(p1ci); // never same character
+    rw=[0,0];matchDone=false;initFight();
+  }else{scr='MPLOBY';updateBackBtn();if(conn&&conn.open)conn.send({t:'char',i:p1ci});}
 }
 function toggleReady(){
   if(mpState!=='connected')return;
@@ -1211,7 +1240,7 @@ function endMatch(winner){
   SFX.stopBGM();
   _mpMatchWinner=winner;
   if(mode==='single'){
-    if(winner==='P1'){streak++;if(streak>hs)hs=streak;stage++;p2ci=Math.floor(Math.random()*6);scr='STGCLEAR';SFX.playWin();}
+    if(winner==='P1'){streak++;if(streak>hs)hs=streak;stage++;p2ci=randOpponent(p1ci);scr='STGCLEAR';SFX.playWin();}
     else{scr='GAMEOVER';collectNick=true;nickInput='';SFX.playLose();
       if(isTouchDev())showNickOverlay();}
   }else{
@@ -1358,8 +1387,8 @@ function _btn(x,y,w,h,txt,col,glow){
   ctx.beginPath();ctx.moveTo(x+10,y);ctx.lineTo(x+w-10,y);ctx.quadraticCurveTo(x+w,y,x+w,y+10);
   ctx.lineTo(x+w,y+h*0.45);ctx.lineTo(x,y+h*0.45);ctx.lineTo(x,y+10);ctx.quadraticCurveTo(x,y,x+10,y);ctx.closePath();ctx.fill();
   ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=1.5;_rr(x,y,w,h,10);ctx.stroke();
-  ctx.shadowBlur=0;ctx.fillStyle='white';ctx.font=`bold 22px 'Bebas Neue',Arial`;
-  ctx.textAlign='center';ctx.fillText(txt,x+w/2,y+h/2+8);ctx.restore();
+  ctx.shadowBlur=0;ctx.fillStyle='white';ctx.font=`bold 15px 'JetBrains Mono',monospace`;
+  ctx.textAlign='center';ctx.fillText(txt,x+w/2,y+h/2+7);ctx.restore();
 }
 function _corner(x,y,sz,flip){
   const sx=flip?-1:1;
@@ -1509,7 +1538,7 @@ function drawBG(){
   // Map name watermark (stage number only — subtle background)
   if(mode==='single'){
     ctx.fillStyle='rgba(255,255,255,0.04)';
-    ctx.font=`bold 200px 'Bebas Neue',Arial`;ctx.textAlign='center';
+    ctx.font=`bold 40px 'Press Start 2P',monospace`;ctx.textAlign='center';
     ctx.fillText(`${stage}`,W/2,GROUND+10);
   }
 }
@@ -1518,64 +1547,78 @@ function drawBG(){
 //  HUD — Tekken-style
 // ════════════════════════════════════════════════
 function drawHUD(){
-  const bw=290,bh=26,by=32,p1x=22,p2x=W-bw-22;
+  const bw=300,bh=34,by=30,p1x=12,p2x=W-bw-12;
   const c1=CHARS[p1ci],c2=CHARS[p2ci];
-  function namePlate(x,w,flip,col){
-    ctx.save();const skew=18;ctx.beginPath();
-    if(!flip){ctx.moveTo(x,by-18);ctx.lineTo(x+w+skew,by-18);ctx.lineTo(x+w,by+bh+14);ctx.lineTo(x,by+bh+14);}
-    else{ctx.moveTo(x-skew,by-18);ctx.lineTo(x+w,by-18);ctx.lineTo(x+w,by+bh+14);ctx.lineTo(x,by+bh+14);}
-    ctx.fillStyle='rgba(0,0,0,0.45)';ctx.fill();
-    ctx.strokeStyle=col+'44';ctx.lineWidth=1;ctx.stroke();ctx.restore();
-  }
-  namePlate(p1x,bw,false,c1.col);namePlate(p2x,bw,true,c2.col);
+
+  // ── Health bars ───────────────────────────────────────────────────
   drawHBar(p1x,by,bw,bh,p1.hp/MAX_HP,c1.col,'l');
   drawHBar(p2x,by,bw,bh,p2.hp/MAX_HP,c2.col,'r');
-  ctx.save();ctx.font=`bold 17px 'Bebas Neue',Arial`;
-  ctx.fillStyle='white';ctx.textAlign='left';ctx.shadowBlur=6;ctx.shadowColor=c1.col;
-  ctx.fillText(c1.name.toUpperCase(),p1x+2,by-4);
-  ctx.shadowBlur=6;ctx.shadowColor=c2.col;ctx.textAlign='right';
-  ctx.fillText(c2.name.toUpperCase(),p2x+bw-2,by-4);ctx.shadowBlur=0;ctx.restore();
-  ctx.font='bold 12px Arial';ctx.fillStyle='rgba(255,255,255,0.6)';
-  ctx.textAlign='left';ctx.fillText(Math.ceil(Math.max(0,p1.hp)),p1x+bw+5,by+18);
-  ctx.textAlign='right';ctx.fillText(Math.ceil(Math.max(0,p2.hp)),p2x-5,by+18);
-  for(let i=0;i<ROUNDS_WIN;i++){
-    _diamond(p1x+8+i*20,by+bh+12,7,i<rw[0]?c1.col:'rgba(255,255,255,0.15)');
-    _diamond(p2x+bw-8-i*20,by+bh+12,7,i<rw[1]?c2.col:'rgba(255,255,255,0.15)');
-  }
-  _corner(p1x,by,14,false);_corner(p1x+bw,by,14,true);
-  _corner(p2x,by,14,false);_corner(p2x+bw,by,14,true);
-  const ts=fightSec,tc=ts<=10?`rgba(255,${Math.floor(100*ts/10)},20,1)`:'rgba(255,255,255,0.95)';
-  ctx.save();
-  _rr(W/2-30,10,60,52,6);ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fill();
-  ctx.strokeStyle='rgba(155,48,255,0.4)';ctx.lineWidth=1.5;_rr(W/2-30,10,60,52,6);ctx.stroke();
-  ctx.fillStyle=tc;ctx.font=`bold 40px 'Bebas Neue',Arial`;ctx.textAlign='center';
-  if(ts<=10){ctx.shadowBlur=15;ctx.shadowColor='#FF3300';}
-  ctx.fillText(ts,W/2,56);ctx.restore();
-  if(mode==='single'){
-    ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='11px Arial';ctx.textAlign='center';
-    ctx.fillText(`STAGE ${stage}  ·  STREAK ${streak}  ·  BEST ${hs}`,W/2,75);
-  }
-  // (mute button is drawn by drawMuteBtn — top-right corner)
 
-  // Combo display
+  // ── Character names ───────────────────────────────────────────────
+  ctx.save();
+  // P1 name — left-aligned, above bar
+  ctx.font=`bold 11px 'JetBrains Mono',monospace`;
+  ctx.fillStyle='white';ctx.textAlign='left';
+  ctx.shadowBlur=8;ctx.shadowColor=c1.col;
+  ctx.fillText(c1.name,p1x+4,by-7);
+  // P2 name — right-aligned, above bar
+  ctx.shadowColor=c2.col;ctx.textAlign='right';
+  ctx.fillText(c2.name,p2x+bw-4,by-7);
+  ctx.shadowBlur=0;ctx.restore();
+
+  // ── HP numbers — outside the bars, larger ─────────────────────────
+  ctx.save();
+  ctx.font=`bold 15px 'JetBrains Mono',monospace`;
+  ctx.fillStyle='rgba(255,255,255,0.75)';
+  ctx.textAlign='left'; ctx.fillText(Math.ceil(Math.max(0,p1.hp)),p1x+bw+8,by+bh-3);
+  ctx.textAlign='right';ctx.fillText(Math.ceil(Math.max(0,p2.hp)),p2x-8,by+bh-3);
+  ctx.restore();
+
+  // ── Round win diamonds ────────────────────────────────────────────
+  for(let i=0;i<ROUNDS_WIN;i++){
+    _diamond(p1x+10+i*22,by+bh+14,7,i<rw[0]?c1.col:'rgba(255,255,255,0.15)');
+    _diamond(p2x+bw-10-i*22,by+bh+14,7,i<rw[1]?c2.col:'rgba(255,255,255,0.15)');
+  }
+
+  // ── Corner accents ────────────────────────────────────────────────
+  _corner(p1x,by,12,false);_corner(p1x+bw,by,12,true);
+  _corner(p2x,by,12,false);_corner(p2x+bw,by,12,true);
+
+  // ── Timer (center) ────────────────────────────────────────────────
+  const ts=fightSec;
+  const tc=ts<=10?`rgba(255,${Math.floor(100*ts/10)},20,1)`:'rgba(255,255,255,0.95)';
+  ctx.save();
+  _rr(W/2-34,8,68,58,8);ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fill();
+  ctx.strokeStyle='rgba(155,48,255,0.45)';ctx.lineWidth=1.5;_rr(W/2-34,8,68,58,8);ctx.stroke();
+  ctx.fillStyle=tc;ctx.font=`bold 22px 'JetBrains Mono',monospace`;ctx.textAlign='center';
+  if(ts<=10){ctx.shadowBlur=18;ctx.shadowColor='#FF3300';}
+  ctx.fillText(ts,W/2,8+58/2+9);ctx.restore();
+
+  // ── Stage / Streak info (below timer) ─────────────────────────────
+  if(mode==='single'){
+    ctx.fillStyle='rgba(255,255,255,0.38)';
+    ctx.font=`11px 'JetBrains Mono',monospace`;ctx.textAlign='center';
+    ctx.fillText(`STAGE ${stage}  ·  STREAK ${streak}  ·  BEST ${hs}`,W/2,80);
+  }
+
+  // ── Combo display ─────────────────────────────────────────────────
   if(p1Combo>=2){
     ctx.save();ctx.textAlign='left';
-    ctx.font=`bold 17px 'Bebas Neue',Arial`;
+    ctx.font=`bold 13px 'JetBrains Mono',monospace`;
     ctx.fillStyle='#FFD700';ctx.shadowBlur=10;ctx.shadowColor='#FFD700';
-    ctx.fillText(`×${p1Combo} COMBO!`,p1x,by+bh+34);
-    ctx.restore();
+    ctx.fillText(`×${p1Combo} COMBO!`,p1x,by+bh+36);ctx.restore();
   }
   if(p2Combo>=2){
     ctx.save();ctx.textAlign='right';
-    ctx.font=`bold 17px 'Bebas Neue',Arial`;
-    ctx.fillStyle=CHARS[p2ci].col;ctx.shadowBlur=10;ctx.shadowColor=CHARS[p2ci].col;
-    ctx.fillText(`×${p2Combo} COMBO!`,p2x+bw,by+bh+34);
-    ctx.restore();
+    ctx.font=`bold 13px 'JetBrains Mono',monospace`;
+    ctx.fillStyle=c2.col;ctx.shadowBlur=10;ctx.shadowColor=c2.col;
+    ctx.fillText(`×${p2Combo} COMBO!`,p2x+bw,by+bh+36);ctx.restore();
   }
+
+  // ── Round end banner ──────────────────────────────────────────────
   if(rndEnd&&rndMsg){
     ctx.save();
     ctx.fillStyle='rgba(0,0,0,0.52)';ctx.fillRect(0,0,W,H);
-    // Banner — taller when PERFECT
     const p1won=rndWinner==='P1',p2won=rndWinner==='P2';
     const showPerf=(p1won&&p1Perfect)||(p2won&&p2Perfect);
     const banH=showPerf?110:88;
@@ -1585,39 +1628,44 @@ function drawHUD(){
     ctx.beginPath();ctx.moveTo(0,H/2+banH/2);ctx.lineTo(W,H/2+banH/2);ctx.stroke();
     ctx.textAlign='center';
     if(showPerf){
-      ctx.font=`bold 20px 'Bebas Neue',Arial`;
+      ctx.font=`bold 14px 'Press Start 2P',monospace`;
       ctx.fillStyle='#00FFAA';ctx.shadowBlur=14;ctx.shadowColor='#00FFAA';
       ctx.fillText('✦  PERFECT  ✦',W/2,H/2-32);ctx.shadowBlur=0;
-      ctx.font=`bold 52px 'Bebas Neue',Arial`;
+      ctx.font=`bold 16px 'Press Start 2P',monospace`;
     }else{
-      ctx.font=`bold 60px 'Bebas Neue',Arial`;
+      ctx.font=`bold 16px 'Press Start 2P',monospace`;
     }
     ctx.fillStyle='#FFD700';ctx.shadowBlur=22;ctx.shadowColor='#FFD700';
     ctx.fillText(rndMsg,W/2,showPerf?H/2+26:H/2+20);
-    ctx.shadowBlur=0;
-    ctx.restore();
+    ctx.shadowBlur=0;ctx.restore();
   }
 }
 function drawHBar(x,y,w,h,ratio,col,dir){
-  ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(x-1,y-1,w+2,h+2);
-  ctx.fillStyle='rgba(20,5,40,0.8)';ctx.fillRect(x,y,w,h);
-  const fw=w*Math.max(0,ratio),fx=dir==='r'?x+w-fw:x;
+  // No background bar — just the fill directly
+  const fw=w*Math.max(0,ratio), fx=dir==='r'?x+w-fw:x;
   if(fw>0){
-    ctx.fillStyle=col;ctx.fillRect(fx,y,fw,h);
-    ctx.fillStyle='rgba(255,255,255,0.18)';ctx.fillRect(fx,y,fw,Math.ceil(h*0.35));
-    if(ratio<0.28){ctx.fillStyle=`rgba(255,60,0,${0.22+0.18*Math.sin(Date.now()*0.014)})`;ctx.fillRect(fx,y,fw,h);}
-    ctx.strokeStyle='rgba(0,0,0,0.25)';ctx.lineWidth=1;
+    ctx.fillStyle=col; ctx.fillRect(fx,y,fw,h);
+    // Top shine
+    ctx.fillStyle='rgba(255,255,255,0.22)'; ctx.fillRect(fx,y,fw,Math.ceil(h*0.3));
+    // Danger pulse
+    if(ratio<0.28){
+      ctx.fillStyle=`rgba(255,60,0,${0.22+0.18*Math.sin(Date.now()*0.014)})`;
+      ctx.fillRect(fx,y,fw,h);
+    }
+    // Segment dividers
+    ctx.strokeStyle='rgba(0,0,0,0.30)'; ctx.lineWidth=1;
     for(let s=1;s<10;s++){
       const sx=dir==='l'?x+s*(w/10):x+w-s*(w/10);
-      if(dir==='l'&&sx>fx+fw)break;if(dir==='r'&&sx<fx)break;
-      ctx.beginPath();ctx.moveTo(sx,y);ctx.lineTo(sx,y+h);ctx.stroke();
+      if(dir==='l'&&sx>fx+fw)break; if(dir==='r'&&sx<fx)break;
+      ctx.beginPath(); ctx.moveTo(sx,y); ctx.lineTo(sx,y+h); ctx.stroke();
     }
   }
-  ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1;ctx.strokeRect(x,y,w,h);
+  // Outer border only — no inner background rect
+  ctx.strokeStyle=col+'55'; ctx.lineWidth=1.5; ctx.strokeRect(x,y,w,h);
 }
 function drawCtrlRef(){
   if(showCtrlBtns())return;
-  ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font='11px Arial';ctx.textAlign='left';
+  ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='left';
   ctx.fillText('← → move  ↑ jump  ↓ hold=charge / release=attack',10,H-10);
 }
 
@@ -1625,23 +1673,44 @@ function drawCtrlRef(){
 //  CONTROLS GUIDE PANEL
 // ════════════════════════════════════════════════
 function drawCtrlGuide(x,y){
-  const bw=285,bh=118;
-  ctx.fillStyle='rgba(5,0,15,0.75)';_rr(x,y,bw,bh,10);ctx.fill();
+  const bw=360,bh=148;
+  // Adjust x so it stays centered
+  x=W/2-bw/2;
+
+  ctx.fillStyle='rgba(5,0,15,0.82)';_rr(x,y,bw,bh,10);ctx.fill();
   ctx.fillStyle='rgba(155,48,255,0.7)';ctx.fillRect(x,y+10,3,bh-20);
-  ctx.strokeStyle='rgba(155,48,255,0.3)';ctx.lineWidth=1;_rr(x,y,bw,bh,10);ctx.stroke();
-  ctx.fillStyle='#FFD700';ctx.font=`bold 12px 'Bebas Neue',Arial`;ctx.textAlign='left';
-  ctx.fillText('ΠΛΗΚΤΡΑ / CONTROLS',x+14,y+17);
-  ctx.strokeStyle='rgba(155,48,255,0.25)';ctx.lineWidth=0.8;
-  ctx.beginPath();ctx.moveTo(x+10,y+24);ctx.lineTo(x+bw-10,y+24);ctx.stroke();
-  const rows=[['↑','Άλμα'],['↓ κράτα','Φόρτιση'],['↓ άφεσε','Super Jump Attack!'],['← →','Κίνηση']];
+  ctx.strokeStyle='rgba(155,48,255,0.35)';ctx.lineWidth=1;_rr(x,y,bw,bh,10);ctx.stroke();
+
+  // Header
+  ctx.fillStyle='#FFD700';ctx.font=`bold 13px 'JetBrains Mono',monospace`;ctx.textAlign='left';
+  ctx.fillText('ΠΛΗΚΤΡΑ / CONTROLS',x+16,y+18);
+  ctx.strokeStyle='rgba(155,48,255,0.3)';ctx.lineWidth=0.8;
+  ctx.beginPath();ctx.moveTo(x+10,y+26);ctx.lineTo(x+bw-10,y+26);ctx.stroke();
+
+  // Key rows — more spacing, key column wider
+  const rows=[
+    ['↑','Άλμα'],
+    ['↓  κράτα','Φόρτιση'],
+    ['↓  άφεσε','Super Jump Attack!'],
+    ['← →','Κίνηση'],
+  ];
+  const keyX=x+16, valX=x+145, rowStart=y+44, rowH=22;
   rows.forEach(([k,v],i)=>{
-    const ry=y+38+i*18;
-    ctx.fillStyle='rgba(255,210,0,0.85)';ctx.font=`bold 12px 'Bebas Neue',Arial`;ctx.textAlign='left';
-    ctx.fillText(k,x+14,ry);
-    ctx.fillStyle='rgba(220,220,220,0.7)';ctx.font='12px Arial';ctx.fillText(v,x+100,ry);
+    const ry=rowStart+i*rowH;
+    ctx.fillStyle='rgba(255,210,0,0.9)';
+    ctx.font=`bold 13px 'JetBrains Mono',monospace`;
+    ctx.textAlign='left';ctx.fillText(k,keyX,ry);
+    ctx.fillStyle='rgba(230,230,230,0.8)';
+    ctx.font=`13px 'JetBrains Mono',monospace`;
+    ctx.fillText(v,valX,ry);
   });
-  ctx.fillStyle='rgba(100,180,255,0.5)';ctx.font='11px Arial';
-  ctx.fillText('📱  Αριστ. αντίχειρας: ↑↓   ·   Δεξί: ← →',x+14,y+108);
+
+  // Mobile hint — separate line with divider
+  ctx.strokeStyle='rgba(155,48,255,0.2)';ctx.lineWidth=0.8;
+  ctx.beginPath();ctx.moveTo(x+10,y+bh-28);ctx.lineTo(x+bw-10,y+bh-28);ctx.stroke();
+  ctx.fillStyle='rgba(100,180,255,0.55)';
+  ctx.font=`12px 'JetBrains Mono',monospace`;ctx.textAlign='center';
+  ctx.fillText('📱  Αριστ. αντίχειρας: ↑↓   ·   Δεξί: ← →',x+bw/2,y+bh-12);
 }
 
 // ════════════════════════════════════════════════
@@ -1668,38 +1737,38 @@ function drawIntro(){
   }else{
     ctx.save();ctx.textAlign='center';
     ctx.shadowBlur=50;ctx.shadowColor='rgba(155,48,255,0.6)';
-    ctx.font=`bold 110px 'Bebas Neue',Arial`;ctx.fillStyle='#FFFFFF';ctx.fillText('EGG',W/2,H*0.32);
+    ctx.font=`bold 26px 'Press Start 2P',monospace`;ctx.fillStyle='#FFFFFF';ctx.fillText('EGG',W/2,H*0.32);
     ctx.shadowBlur=30;ctx.shadowColor='#FFD700';ctx.fillStyle='#FFD700';
-    ctx.font=`bold 90px 'Bebas Neue',Arial`;ctx.fillText('BATTLE',W/2,H*0.46);
+    ctx.font=`bold 22px 'Press Start 2P',monospace`;ctx.fillText('BATTLE',W/2,H*0.46);
     ctx.shadowBlur=0;ctx.restore();
   }
   ctx.strokeStyle='rgba(155,48,255,0.4)';ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(W/2-140,H*0.56);ctx.lineTo(W/2+140,H*0.56);ctx.stroke();
   if(blink){
-    ctx.fillStyle='rgba(255,255,255,0.82)';ctx.font=`bold 18px 'Bebas Neue',Arial`;
+    ctx.fillStyle='rgba(255,255,255,0.82)';ctx.font=`bold 16px 'JetBrains Mono',monospace`;
     ctx.textAlign='center';ctx.fillText('ΠΑΤΑ ΟΠΟΥΔΗΠΟΤΕ',W/2,H*0.82);
   }
   if(hs>0){
     _rr(W/2-135,H-44,270,28,6);ctx.fillStyle='rgba(0,0,0,0.4)';ctx.fill();
-    ctx.fillStyle='rgba(255,215,0,0.7)';ctx.font='13px Arial';ctx.textAlign='center';
+    ctx.fillStyle='rgba(255,215,0,0.7)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';
     ctx.fillText(`🏆 BEST: ${hs} wins${scores[0]?.name?' · '+scores[0].name:''}`,W/2,H-22);
   }
 }
 function drawMode(){
   _menuBg();
   ctx.save();ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,0.92)';
-  ctx.font=`bold 48px 'Bebas Neue',Arial`;ctx.fillText('ΕΠΙΛΟΓΗ ΤΡΟΠΟΥ',W/2,H*0.22);ctx.restore();
+  ctx.font=`bold 19px 'JetBrains Mono',monospace`;ctx.fillText('ΕΠΙΛΟΓΗ ΤΡΟΠΟΥ',W/2,H*0.22);ctx.restore();
   ctx.strokeStyle='rgba(155,48,255,0.5)';ctx.lineWidth=1.5;
   ctx.beginPath();ctx.moveTo(W/2-160,H*0.22+10);ctx.lineTo(W/2+160,H*0.22+10);ctx.stroke();
-  _btn(W/2-195,H/2-78,390,72,'⚔  SINGLE PLAYER','#3D1A6E','#9B30FF');
-  _btn(W/2-195,H/2+16,390,72,'🌐  MULTIPLAYER','#0A2E52','#1A7FC4');
-  ctx.fillStyle='rgba(255,255,255,0.22)';ctx.font='13px Arial';ctx.textAlign='center';
+  _btn(W/2-195,H/2-78,390,72,'⚔  ΤΣΟΥΓΚΡΙΣΕ ΜΕ ΤΟ LUBEN','#3D1A6E','#9B30FF');
+  _btn(W/2-195,H/2+16,390,72,'🌐  ΤΣΟΥΓΚΡΙΣΕ ΜΕ ΕΝΑΝ ΦΙΛΟ ΣΟΥ','#0A2E52','#1A7FC4');
+  ctx.fillStyle='rgba(255,255,255,0.22)';ctx.font="14px 'JetBrains Mono',monospace";ctx.textAlign='center';
   ctx.fillText('1  ·  2  ·  Click / Tap',W/2,H-28);
 }
 function drawCharSel(){
   _menuBg();
   ctx.save();ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,0.9)';
-  ctx.font=`bold 38px 'Bebas Neue',Arial`;ctx.fillText('ΔΙΑΛΕΞΕ ΤΟ ΑΥΓΟ ΣΟΥ',W/2,50);ctx.restore();
+  ctx.font=`bold 16px 'JetBrains Mono',monospace`;ctx.fillText('ΔΙΑΛΕΞΕ ΤΟ ΑΥΓΟ ΣΟΥ',W/2,50);ctx.restore();
   ctx.strokeStyle='rgba(155,48,255,0.4)';ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(W/2-180,60);ctx.lineTo(W/2+180,60);ctx.stroke();
 
@@ -1723,28 +1792,24 @@ function drawCharSel(){
     ctx.beginPath();ctx.ellipse(cx-r*0.18,cy-r*0.3,r*0.28,r*0.16,-0.4,0,Math.PI*2);ctx.fill();
     // Name — clearly inside card, well above bottom border
     ctx.fillStyle=sel?c.col:'rgba(255,255,255,0.5)';
-    ctx.font=sel?`bold 13px 'Bebas Neue',Arial`:`12px 'Bebas Neue',Arial`;
+    ctx.font=sel?`bold 13px 'JetBrains Mono',monospace`:`13px 'JetBrains Mono',monospace`;
     ctx.textAlign='center';ctx.fillText(c.name,cx,sy2+ch2-12);
   });
   const arrowX=sx2+charCur*cw2+cw2/2;
   ctx.save();ctx.fillStyle='#FFD700';ctx.shadowBlur=8;ctx.shadowColor='#FFD700';
-  ctx.font='16px Arial';ctx.textAlign='center';ctx.fillText('▼',arrowX,sy2-5);ctx.restore();
-  const descY=sy2+ch2+18;
-  _rr(W/2-200,descY-14,400,26,6);ctx.fillStyle='rgba(0,0,0,0.4)';ctx.fill();
-  ctx.fillStyle='rgba(255,230,100,0.8)';ctx.font='13px Arial';ctx.textAlign='center';
-  ctx.fillText(CHARS[charCur].spe,W/2,descY);
+  ctx.font="14px 'JetBrains Mono',monospace";ctx.textAlign='center';ctx.fillText('▼',arrowX,sy2-5);ctx.restore();
 
   // Controls guide — only on non-touch
   if(!isTouchDev()) drawCtrlGuide(W/2-142,H-196);
 
-  ctx.fillStyle='rgba(255,255,255,0.28)';ctx.font='13px Arial';ctx.textAlign='center';
+  ctx.fillStyle='rgba(255,255,255,0.28)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';
   ctx.fillText('← →  επιλογή   ·   ENTER ή κλικ για επιβεβαίωση',W/2,H-18);
 }
 function drawMPLobby(){
   _menuBg();
 
   // ── Header ───────────────────────────────────
-  ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font=`bold 38px 'Bebas Neue',Arial`;
+  ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font=`bold 16px 'JetBrains Mono',monospace`;
   ctx.textAlign='center';ctx.fillText('MULTIPLAYER',W/2,50);
   ctx.strokeStyle='rgba(26,127,196,0.35)';ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(W/2-130,58);ctx.lineTo(W/2+130,58);ctx.stroke();
@@ -1752,11 +1817,11 @@ function drawMPLobby(){
   // ── ERROR ────────────────────────────────────
   if(mpState==='error'){
     ctx.save();ctx.textAlign='center';
-    ctx.font='20px Arial';ctx.fillStyle='#E74C3C';ctx.shadowBlur=12;ctx.shadowColor='#E74C3C';
+    ctx.font="13px 'JetBrains Mono',monospace";ctx.fillStyle='#E74C3C';ctx.shadowBlur=12;ctx.shadowColor='#E74C3C';
     ctx.fillText('❌  Αποτυχία σύνδεσης',W/2,H/2-60);ctx.shadowBlur=0;
     // Word-wrap error
     const words=mpErr.split(' ');let line='',lineY=H/2-30;
-    ctx.font='14px Arial';ctx.fillStyle='rgba(255,200,200,0.8)';
+    ctx.font="13px 'JetBrains Mono',monospace";ctx.fillStyle='rgba(255,200,200,0.8)';
     words.forEach(w=>{
       const test=line+w+' ';
       if(ctx.measureText(test).width>480&&line){ctx.fillText(line.trim(),W/2,lineY);lineY+=20;line=w+' ';}
@@ -1766,7 +1831,7 @@ function drawMPLobby(){
     ctx.restore();
     _btn(W/2-120,H/2+30,110,46,'🔄 RETRY','#1A3060','#2E7FC4');
     _btn(W/2+10, H/2+30,110,46,'← ΠΙΣΩ', '#3A1060','#8B30FF');
-    ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font='12px Arial';ctx.textAlign='center';
+    ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';
     ctx.fillText('ESC για επιστροφή',W/2,H-15);
     return;
   }
@@ -1775,17 +1840,17 @@ function drawMPLobby(){
   if(mpState!=='connected'){
     if(isHost){
       // Show link to share
-      ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='14px Arial';ctx.textAlign='center';
+      ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';
       ctx.fillText('Στείλε το link στον αντίπαλό σου',W/2,90);
       const roomUrl=myPeerId?(window.location.href.split('?')[0]+'?room='+myPeerId):'';
       _rr(50,100,W-210,44,8);ctx.fillStyle='rgba(0,10,30,0.6)';ctx.fill();
       ctx.strokeStyle='rgba(79,195,247,0.25)';ctx.lineWidth=1;_rr(50,100,W-210,44,8);ctx.stroke();
       if(myPeerId){
-        ctx.fillStyle='#4FC3F7';ctx.font='11px monospace';ctx.textAlign='left';
+        ctx.fillStyle='#4FC3F7';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='left';
         ctx.fillText(roomUrl.substring(0,65)+(roomUrl.length>65?'…':''),63,127);
       }else{
         const dots='.'.repeat(1+Math.floor(Date.now()/400)%3);
-        ctx.fillStyle='rgba(255,230,100,0.6)';ctx.font='13px Arial';ctx.textAlign='center';
+        ctx.fillStyle='rgba(255,230,100,0.6)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';
         ctx.fillText('Φόρτωση'+dots,W/2-50,127);
       }
       const cp=copiedFeedback>0;
@@ -1793,17 +1858,17 @@ function drawMPLobby(){
       _btn(W-152,100,114,44,shareLabel,cp?'#0E4A28':'#0E3A5C',cp?'#2ECC71':'#1A7FC4');
       // Status
       const pulse=`rgba(255,230,100,${0.55+0.18*Math.sin(Date.now()*0.003)})`;
-      ctx.fillStyle=pulse;ctx.font='18px Arial';ctx.textAlign='center';
+      ctx.fillStyle=pulse;ctx.font="14px 'JetBrains Mono',monospace";ctx.textAlign='center';
       ctx.fillText('⏳  Αναμονή αντιπάλου...',W/2,175);
     }else{
       const dots='.'.repeat(1+Math.floor(Date.now()/500)%3);
       const pulse=`rgba(255,220,80,${0.6+0.2*Math.sin(Date.now()*0.004)})`;
-      ctx.fillStyle=pulse;ctx.font='20px Arial';ctx.textAlign='center';
+      ctx.fillStyle=pulse;ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';
       ctx.fillText(`⏳  Σύνδεση${dots}`,W/2,H/2);
-      ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='13px Arial';
+      ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font="13px 'JetBrains Mono',monospace";
       ctx.fillText('Βεβαιώσου ότι ο host έχει το παιχνίδι ανοιχτό',W/2,H/2+28);
     }
-    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font='12px Arial';ctx.textAlign='center';
+    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';
     ctx.fillText('ESC για επιστροφή',W/2,H-15);
     return;
   }
@@ -1846,7 +1911,7 @@ function drawMPLobby(){
 
     // Name — inside card, above bottom edge
     ctx.fillStyle=isMine?'#FFD700':isOpp?c.col:'rgba(255,255,255,0.4)';
-    ctx.font=`${(isMine||isOpp)?'bold ':''}12px 'Bebas Neue',Arial`;
+    ctx.font=`${(isMine||isOpp)?'bold ':''}13px 'JetBrains Mono',monospace`;
     ctx.textAlign='center';ctx.fillText(c.name,cx,sy2+ch2-10);
   });
 
@@ -1855,35 +1920,31 @@ function drawMPLobby(){
   const oppX=sx2+oppCI*cw2+cw2/2;
   ctx.save();
   ctx.fillStyle='#FFD700';ctx.shadowBlur=8;ctx.shadowColor='#FFD700';
-  ctx.font='13px Arial';ctx.textAlign='center';ctx.fillText('▼',myX,sy2-4);
-  ctx.shadowBlur=0;ctx.fillStyle='rgba(255,215,0,0.7)';ctx.font='10px Arial';
+  ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';ctx.fillText('▼',myX,sy2-4);
+  ctx.shadowBlur=0;ctx.fillStyle='rgba(255,215,0,0.7)';ctx.font="13px 'JetBrains Mono',monospace";
   ctx.fillText('ΕΣΥ',myX,sy2-16);
 
   // OPP cursor ▼ also above (different color), keep both at top
   if(myCI!==oppCI){
     const oc=CHARS[oppCI].col;
-    ctx.fillStyle=oc;ctx.shadowBlur=6;ctx.shadowColor=oc;ctx.font='13px Arial';
+    ctx.fillStyle=oc;ctx.shadowBlur=6;ctx.shadowColor=oc;ctx.font="13px 'JetBrains Mono',monospace";
     ctx.fillText('▼',oppX,sy2-4);ctx.shadowBlur=0;
-    ctx.fillStyle=oc+'cc';ctx.font='10px Arial';ctx.fillText('ΑΝΤΙΠ.',oppX,sy2-16);
+    ctx.fillStyle=oc+'cc';ctx.font="13px 'JetBrains Mono',monospace";ctx.fillText('ΑΝΤΙΠ.',oppX,sy2-16);
   }
   ctx.restore();
 
   // Description
-  const descY=sy2+ch2+18;
-  _rr(W/2-195,descY-13,390,24,6);ctx.fillStyle='rgba(0,0,0,0.4)';ctx.fill();
-  ctx.fillStyle='rgba(255,230,100,0.8)';ctx.font='12px Arial';ctx.textAlign='center';
-  ctx.fillText(CHARS[myCI].spe,W/2,descY);
-
-  // Map + opponent name compact row
-  ctx.fillStyle='rgba(255,255,255,0.22)';ctx.font='11px Arial';
-  ctx.fillText(`🗺 ${MAP_CFG[p1ci].name}  ·  vs ${CHARS[oppCI].name}`,W/2,descY+16);
+  const descY=sy2+ch2+14;
+  // Map + opponent name compact row (no spe description)
+  ctx.fillStyle='rgba(255,255,255,0.22)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';
+  ctx.fillText(`🗺 ${MAP_CFG[p1ci].name}  ·  vs ${CHARS[oppCI].name}`,W/2,descY);
 
   // Controls guide — same as single player, centered lower
   if(!isTouchDev()) drawCtrlGuide(W/2-142,H-196);
 
   // Ready status — compact single line above button
   const readyY=H-76;
-  ctx.font=`bold 13px 'Bebas Neue',Arial`;ctx.textAlign='left';
+  ctx.font=`bold 13px 'JetBrains Mono',monospace`;ctx.textAlign='left';
   ctx.fillStyle=myR?'#2ECC71':'rgba(255,255,255,0.3)';
   ctx.fillText(myR?'✅ READY':'ΟΧΙ ΕΤΟΙΜΟΣ',sx2,readyY);
   ctx.fillStyle=oppR?'#2ECC71':'rgba(255,255,255,0.3)';
@@ -1893,57 +1954,57 @@ function drawMPLobby(){
   _btn(W/2-115,H-62,230,44,myR?'✅ READY!':'READY',myR?'#0E4A28':'#1A3060',myR?'#2ECC71':'#1A7FC4');
 
   // Footer
-  ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font='12px Arial';ctx.textAlign='center';
+  ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';
   ctx.fillText('← →  επιλογή  ·  ENTER = READY  ·  ESC = πίσω',W/2,H-15);
 }
 function drawStageClear(){
   _menuBg();
   ctx.save();ctx.textAlign='center';
-  ctx.font=`bold 80px 'Bebas Neue',Arial`;ctx.fillStyle='#2ECC71';
+  ctx.font=`bold 20px 'Press Start 2P',monospace`;ctx.fillStyle='#2ECC71';
   ctx.shadowBlur=40;ctx.shadowColor='#2ECC71';ctx.fillText('YOU WIN!',W/2,H*0.3);ctx.shadowBlur=0;
-  ctx.font='36px Arial';ctx.fillText('🏆',W/2,H*0.42);
-  ctx.font=`bold 28px 'Bebas Neue',Arial`;ctx.fillStyle='#FFD700';
+  ctx.font="16px 'Press Start 2P',monospace";ctx.fillText('🏆',W/2,H*0.42);
+  ctx.font=`bold 13px 'JetBrains Mono',monospace`;ctx.fillStyle='#FFD700';
   ctx.fillText(`STREAK  ${streak}`,W/2,H*0.55);
-  ctx.font='16px Arial';ctx.fillStyle='rgba(255,255,255,0.45)';
+  ctx.font="14px 'JetBrains Mono',monospace";ctx.fillStyle='rgba(255,255,255,0.45)';
   ctx.fillText(`Best: ${hs} wins  ·  Stage ${stage} ξεκινά`,W/2,H*0.64);
-  if(blink){ctx.fillStyle='rgba(255,255,255,0.7)';ctx.font=`bold 17px 'Bebas Neue',Arial`;ctx.fillText('ΠΑΤΑ ΓΙΑ ΣΥΝΕΧΕΙΑ',W/2,H*0.8);}
+  if(blink){ctx.fillStyle='rgba(255,255,255,0.7)';ctx.font=`bold 15px 'JetBrains Mono',monospace`;ctx.fillText('ΠΑΤΑ ΓΙΑ ΣΥΝΕΧΕΙΑ',W/2,H*0.8);}
   ctx.restore();
 }
 function drawGameOver(){
   _menuBg();
   ctx.save();ctx.textAlign='center';
-  ctx.font=`bold 74px 'Bebas Neue',Arial`;ctx.fillStyle='#E74C3C';
+  ctx.font=`bold 18px 'Press Start 2P',monospace`;ctx.fillStyle='#E74C3C';
   ctx.shadowBlur=35;ctx.shadowColor='#E74C3C';ctx.fillText('GAME OVER',W/2,84);ctx.shadowBlur=0;
   ctx.strokeStyle='rgba(231,76,60,0.3)';ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(W/2-200,95);ctx.lineTo(W/2+200,95);ctx.stroke();
-  ctx.font='14px Arial';ctx.fillStyle='rgba(255,255,255,0.5)';ctx.fillText('Nickname:',W/2,126);
+  ctx.font="13px 'JetBrains Mono',monospace";ctx.fillStyle='rgba(255,255,255,0.5)';ctx.fillText('Nickname:',W/2,126);
   _rr(W/2-148,132,296,48,8);ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fill();
   ctx.strokeStyle='rgba(155,48,255,0.5)';ctx.lineWidth=1.5;_rr(W/2-148,132,296,48,8);ctx.stroke();
-  ctx.fillStyle='white';ctx.font=`bold 24px 'Bebas Neue',Arial`;
+  ctx.fillStyle='white';ctx.font=`bold 14px 'JetBrains Mono',monospace`;
   ctx.fillText(nickInput+(blink?'|':''),W/2,164);
-  ctx.font='12px Arial';ctx.fillStyle='rgba(255,255,255,0.3)';ctx.fillText('ENTER για αποθήκευση',W/2,200);
+  ctx.font="13px 'JetBrains Mono',monospace";ctx.fillStyle='rgba(255,255,255,0.3)';ctx.fillText('ENTER για αποθήκευση',W/2,200);
   const sbX=W/2-315,sbY=215,sbW=630,sbH=270;
   _rr(sbX,sbY,sbW,sbH,12);ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fill();
   ctx.strokeStyle='rgba(255,215,0,0.22)';ctx.lineWidth=1.5;_rr(sbX,sbY,sbW,sbH,12);ctx.stroke();
   ctx.fillStyle='rgba(255,215,0,0.5)';ctx.fillRect(sbX,sbY+14,3,sbH-28);
-  ctx.fillStyle='#FFD700';ctx.font=`bold 16px 'Bebas Neue',Arial`;
+  ctx.fillStyle='#FFD700';ctx.font=`bold 13px 'JetBrains Mono',monospace`;
   ctx.fillText('HALL OF FAME',W/2,sbY+22);
   ctx.strokeStyle='rgba(255,215,0,0.2)';ctx.lineWidth=0.8;
   ctx.beginPath();ctx.moveTo(sbX+14,sbY+32);ctx.lineTo(sbX+sbW-14,sbY+32);ctx.stroke();
   if(scores.length===0){
-    ctx.fillStyle='rgba(255,255,255,0.28)';ctx.font='14px Arial';ctx.fillText('Κανένα σκορ ακόμα',W/2,sbY+90);
+    ctx.fillStyle='rgba(255,255,255,0.28)';ctx.font="13px 'JetBrains Mono',monospace";ctx.fillText('Κανένα σκορ ακόμα',W/2,sbY+90);
   }else{
     const cols2=[[sbX+28,'#'],[sbX+56,'NICKNAME'],[sbX+240,'STREAK'],[sbX+370,'ΗΜΕΡΟΜΗΝΙΑ']];
-    ctx.font=`10px 'Bebas Neue',Arial`;ctx.fillStyle='rgba(255,215,0,0.55)';
+    ctx.font=`13px 'JetBrains Mono',monospace`;ctx.fillStyle='rgba(255,215,0,0.55)';
     cols2.forEach(([cx2,lbl])=>{ctx.textAlign='left';ctx.fillText(lbl,cx2,sbY+48);});
     scores.slice(0,8).forEach((s,i)=>{
       const ry=sbY+64+i*25;
       if(i===0){ctx.fillStyle='rgba(255,215,0,0.06)';ctx.fillRect(sbX+8,ry-14,sbW-16,22);}
       const fresh=s.name===nickInput&&s.streak===streak;
       ctx.fillStyle=i===0?'#FFD700':fresh?'#2ECC71':'rgba(255,255,255,0.7)';
-      ctx.font=i===0?`bold 13px Arial`:`12px Arial`;ctx.textAlign='left';
+      ctx.font=i===0?`bold 13px 'JetBrains Mono',monospace`:`13px 'JetBrains Mono',monospace`;ctx.textAlign='left';
       ctx.fillText(i+1+'.',sbX+28,ry);ctx.fillText(s.name,sbX+56,ry);ctx.fillText(s.streak+' wins',sbX+240,ry);
-      ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='12px Arial';ctx.fillText(s.date||'',sbX+370,ry);
+      ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font="13px 'JetBrains Mono',monospace";ctx.fillText(s.date||'',sbX+370,ry);
     });
   }
   ctx.restore();
@@ -1974,15 +2035,15 @@ function drawMatchOver(){
     headline=w;col=wcol;subline='🥇';
   }
 
-  ctx.font=`bold 72px 'Bebas Neue',Arial`;ctx.fillStyle=col;
+  ctx.font=`bold 18px 'Press Start 2P',monospace`;ctx.fillStyle=col;
   ctx.shadowBlur=32;ctx.shadowColor=col;ctx.fillText(headline,W/2,H*0.34);ctx.shadowBlur=0;
   if(mode!=='multi'){
-    ctx.font=`bold 36px 'Bebas Neue',Arial`;ctx.fillStyle='rgba(255,255,255,0.85)';
+    ctx.font=`bold 14px 'Press Start 2P',monospace`;ctx.fillStyle='rgba(255,255,255,0.85)';
     ctx.fillText('ΝΙΚΗΣΕ!',W/2,H*0.46);
   }
-  ctx.font='36px Arial';ctx.fillText(subline,W/2,H*0.57);
+  ctx.font="16px 'Press Start 2P',monospace";ctx.fillText(subline,W/2,H*0.57);
   if(blink){
-    ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font=`bold 16px 'Bebas Neue',Arial`;
+    ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font=`bold 13px 'JetBrains Mono',monospace`;
     ctx.fillText(mode==='multi'?'ΠΑΤΑ ΓΙΑ ΝΕΟΝ ΑΓΩΝΑ':'ΠΑΤΑ ΓΙΑ ΕΠΑΝΕΝΑΡΞΗ',W/2,H*0.74);
   }
   ctx.restore();
@@ -2016,12 +2077,12 @@ function loop(ts){
         ctx.save();
         ctx.fillStyle='rgba(0,0,0,0.45)';ctx.fillRect(0,0,W,H);
         ctx.textAlign='center';
-        ctx.font=`bold 140px 'Bebas Neue',Arial`;
+        ctx.font=`bold 28px 'Press Start 2P',monospace`;
         ctx.fillStyle='#FFD700';
         ctx.shadowBlur=50;ctx.shadowColor='#FFD700';
         ctx.fillText(cdCount,W/2,H/2+48);
         ctx.shadowBlur=0;
-        ctx.font=`bold 22px 'Bebas Neue',Arial`;
+        ctx.font=`bold 12px 'Press Start 2P',monospace`;
         ctx.fillStyle='rgba(255,255,255,0.6)';
         ctx.fillText('ΕΤΟΙΜΟΣ;',W/2,H/2-60);
         ctx.restore();
@@ -2065,9 +2126,10 @@ function checkUrl(){
   }
 }
 
+// Wait for Press Start 2P font before starting
 SFX.init();
 checkUrl();
-requestAnimationFrame(loop);
+document.fonts.ready.then(()=>requestAnimationFrame(loop));
 </script>
 </body>
 </html>
