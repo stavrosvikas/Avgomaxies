@@ -6,14 +6,6 @@
 
 ---
 
-## 🎮 Παίξε τώρα
-
-👉 **[luben-avgomaxies.github.io](https://luben-avgomaxies.github.io)** *(αντικατέστησε με το πραγματικό URL)*
-
-Λειτουργεί σε οποιονδήποτε browser — desktop, mobile, tablet. Δεν χρειάζεται εγκατάσταση.
-
----
-
 ## ⚔️ Χαρακτήρες
 
 | # | Χαρακτήρας | Χρώμα |
