@@ -161,7 +161,7 @@ function aiDiff(s){
 const CHARS=[
   {id:'character01',name:'ΕΥΑΜΕΛΑΤΟΣ',col:'#F5E230',shade:'#B09800'},
   {id:'character02',name:'EGG7000',    col:'#3CB371',shade:'#1A5C35'},
-  {id:'character03',name:'MAREEGONA', col:'#F2E8D0',shade:'#C8A880'},
+  {id:'character03',name:'MAREGGONA', col:'#F2E8D0',shade:'#C8A880'},
   {id:'character04',name:'ΑΥΓΥΛΑΣ',   col:'#1E1E1E',shade:'#0A0A0A'},
   {id:'character05',name:'ΜΗΤΣΟΦΛΑΚΗΣ',col:'#2E8FD8',shade:'#1050A0'},
   {id:'character06',name:'ΑΥΓΟΥΜΠΑΣ',col:'#E03030',shade:'#8A1010'},
@@ -214,7 +214,7 @@ const SFX=(()=>{
   const CHAR_SND={
     'character01':'evaggelatos',  // ΕΥΑΜΕΛΑΤΟΣ
     'character02':'dpg',          // EGG7000
-    'character03':'marigkona',    // MAREEGONA
+    'character03':'marigkona',    // MAREGGONA
     'character04':'akylas',       // ΑΥΓΥΛΑΣ
     'character05':'mitsotakis',   // ΜΗΤΣΟΦΛΑΚΗΣ
     'character06':'koutsoumpas',  // ΑΥΓΟΥΜΠΑΣ
@@ -1112,12 +1112,12 @@ function collide(a,b){
   const bApproach = -b.vx*nx - b.vy*ny;   // b moving toward a
   const relV=Math.sqrt((a.vx-b.vx)**2+(a.vy-b.vy)**2);
   const midX=(a.x+b.x)/2, midY=(a.y+b.y)/2-20;
-  if(relV>4.5){
+  if(relV>3.0){
     // Only deal damage if actually approaching the opponent (not bouncing away)
     // b takes damage from a's approach speed — a hit b
-    if(aApproach>2.5) b.takeDamage(aApproach*DMG_MULT, midX, midY, true);
+    if(aApproach>1.5) b.takeDamage(aApproach*DMG_MULT, midX, midY, true);
     // a takes damage from b's approach speed — b hit a
-    if(bApproach>2.5) a.takeDamage(bApproach*DMG_MULT, midX, midY, false);
+    if(bApproach>1.5) a.takeDamage(bApproach*DMG_MULT, midX, midY, false);
     const bo=relV*0.44;
     a.vx=-nx*bo*0.88;a.vy=-ny*bo*0.48;b.vx=nx*bo*0.88;b.vy=ny*bo*0.48;
     a.onGnd=false;b.onGnd=false;
@@ -1792,7 +1792,7 @@ function drawCtrlRef(){
   if(showCtrlBtns()){
     // Mobile: show button legend
     ctx.fillStyle='rgba(255,255,255,0.22)';ctx.font="11px 'JetBrains Mono',monospace";ctx.textAlign='center';
-    ctx.fillText('↑ άλμα  ·  ↓ κράτα=φόρτιση  ·  ↓ άφεσε=επίθεση  ·  ← → κίνηση',W/2,H-8);
+    ctx.fillText('↑ άλμα  ·  ↓ κράτα=φόρτιση  ·  ↓ άφησε=επίθεση  ·  ← → κίνηση',W/2,H-8);
     return;
   }
   ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='left';
@@ -1820,8 +1820,8 @@ function drawCtrlGuide(x,y){
   // Key rows — more spacing, key column wider
   const rows=[
     ['↑','Άλμα'],
-    ['↓  κράτα','Φόρτιση'],
-    ['↓  άφεσε','Super Jump Attack!'],
+    ['↓ κράτα','Φόρτιση'],
+    ['↓ άφησε','Super Jump!'],
     ['← →','Κίνηση'],
   ];
   const keyX=x+16, valX=x+145, rowStart=y+44, rowH=22;
@@ -1840,7 +1840,7 @@ function drawCtrlGuide(x,y){
   ctx.beginPath();ctx.moveTo(x+10,y+bh-28);ctx.lineTo(x+bw-10,y+bh-28);ctx.stroke();
   ctx.fillStyle='rgba(100,180,255,0.55)';
   ctx.font=`12px 'JetBrains Mono',monospace`;ctx.textAlign='center';
-  ctx.fillText('📱  Αριστ. αντίχειρας: ↑↓   ·   Δεξί: ← →',x+bw/2,y+bh-12);
+  ctx.fillText('📱  Αριστερός αντίχειρας: ↑↓   ·   Δεξί: ← →',x+bw/2,y+bh-12);
 }
 
 // ════════════════════════════════════════════════
@@ -2190,7 +2190,7 @@ function drawMatchOver(){
   ctx.font="16px 'Press Start 2P',monospace";ctx.fillText(subline,W/2,H*0.57);
   if(blink){
     ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font=`bold 13px 'JetBrains Mono',monospace`;
-    ctx.fillText(mode==='multi'?'ΠΑΤΑ ΓΙΑ ΝΕΟΝ ΑΓΩΝΑ':'ΠΑΤΑ ΓΙΑ ΕΠΑΝΕΝΑΡΞΗ',W/2,H*0.74);
+    ctx.fillText(mode==='multi'?'ΠΑΤΑ ΓΙΑ ΝΕΟ ΑΓΩΝΑ':'ΠΑΤΑ ΓΙΑ ΕΠΑΝΕΝΑΡΞΗ',W/2,H*0.74);
   }
   ctx.restore();
 }
