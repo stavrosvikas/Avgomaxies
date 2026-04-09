@@ -159,7 +159,7 @@ function aiDiff(s){
 //  CHARACTERS
 // ════════════════════════════════════════════════
 const CHARS=[
-  {id:'character01',name:'ΕΥΑΓΓΕΛΑΤΟΣ',col:'#F5E230',shade:'#B09800'},
+  {id:'character01',name:'ΕΥΑΜΕΛΑΤΟΣ',col:'#F5E230',shade:'#B09800'},
   {id:'character02',name:'EGG7000',    col:'#3CB371',shade:'#1A5C35'},
   {id:'character03',name:'MAREEGONA', col:'#F2E8D0',shade:'#C8A880'},
   {id:'character04',name:'ΑΥΓΥΛΑΣ',   col:'#1E1E1E',shade:'#0A0A0A'},
@@ -212,7 +212,7 @@ const SFX=(()=>{
   // ── Character voice map: id → filename ──────────────────────────────
   // Files must be in assets/sounds/ with these exact names
   const CHAR_SND={
-    'character01':'evaggelatos',  // ΕΥΑΓΓΕΛΑΤΟΣ
+    'character01':'evaggelatos',  // ΕΥΑΜΕΛΑΤΟΣ
     'character02':'dpg',          // EGG7000
     'character03':'marigkona',    // MAREEGONA
     'character04':'akylas',       // ΑΥΓΥΛΑΣ
@@ -322,7 +322,8 @@ const SFX=(()=>{
   };
   const playLose=()=>{
     _clearTimers();stopVoice();
-    [400,350,280,200].forEach((f,i)=>_t(()=>tone(f,f,0.3,'triangle',0.3),i*200));
+    // Delay tones 180ms so sfxG gain ramp from stopBGM completes first
+    _t(()=>[400,350,280,200].forEach((f,i)=>_t(()=>tone(f,f,0.3,'triangle',0.3),i*200)),180);
   };
   const playCountdown=()=>tone(880,880,0.1,'square',0.35);
   const playRoundStart=()=>{
@@ -335,8 +336,9 @@ const SFX=(()=>{
     if(!AC)return;stopBGM();
     fetch(`assets/sounds/music_${name}.mp3`).then(r=>r.ok?r.arrayBuffer():null)
       .then(b=>b&&AC.decodeAudioData(b)).then(dec=>{
-        if(!dec)return;bgmSrc=AC.createBufferSource();bgmSrc.buffer=dec;bgmSrc.loop=true;
-        bgmSrc.connect(musG);bgmSrc.start();bgmName=name;
+        if(!dec||bgmName!==name)return; // abandoned if stopBGM called during fetch
+        bgmSrc=AC.createBufferSource();bgmSrc.buffer=dec;bgmSrc.loop=true;
+        bgmSrc.connect(musG);bgmSrc.start();
       }).catch(()=>{});
   }
   function stopBGM(){
@@ -867,30 +869,37 @@ class Egg{
     const c=this.C,r=ER,fW=128;
     const fh=this.hitFlash>0&&Math.floor(this.hitFlash/55)%2===0;
     const spr=this.sprites[this.anim];
+
+    ctx.save();ctx.translate(this.x,this.y);
+
     if(spr&&spr.complete&&spr.naturalWidth>0){
-      // Display at 128px — character content (±45px) matches procedural ER=46
+      // Sprite path
       const dSz=128;
-      ctx.save();ctx.translate(this.x,this.y);
+      ctx.save();
       if(this.facing<0)ctx.scale(-1,1);
       if(fh)ctx.globalAlpha=0.35;
       ctx.drawImage(spr,this.frameIdx*fW,0,fW,fW,-dSz/2,-dSz/2,dSz,dSz);
-      ctx.restore();return;
+      ctx.restore();
+    }else{
+      // Procedural fallback
+      if(fh)ctx.globalAlpha=0.35;
+      ctx.save();ctx.rotate(this.rot);
+      ctx.beginPath();ctx.ellipse(0,0,r*0.82,r,0,0,Math.PI*2);
+      const g=ctx.createRadialGradient(-r*0.22,-r*0.3,r*0.06,0,0,r);
+      g.addColorStop(0,_lx(c.col,48));g.addColorStop(0.52,c.col);g.addColorStop(1,c.shade);
+      ctx.fillStyle=g;ctx.fill();
+      if(this.crackLv>0){
+        ctx.strokeStyle='rgba(0,0,0,0.65)';ctx.lineWidth=1.8;ctx.beginPath();
+        ctx.moveTo(-4,-16);ctx.lineTo(10,3);ctx.lineTo(2,22);
+        if(this.crackLv>1){ctx.moveTo(-18,0);ctx.lineTo(-7,18);ctx.moveTo(14,-12);ctx.lineTo(6,8);}
+        if(this.crackLv>2){ctx.moveTo(-22,-4);ctx.lineTo(-12,18);ctx.moveTo(12,-22);ctx.lineTo(22,6);ctx.moveTo(-3,-26);ctx.lineTo(7,-2);}
+        ctx.stroke();
+      }
+      ctx.restore();
     }
-    // Placeholder
-    ctx.save();ctx.translate(this.x,this.y);if(fh)ctx.globalAlpha=0.35;
-    ctx.save();ctx.rotate(this.rot);
-    ctx.beginPath();ctx.ellipse(0,0,r*0.82,r,0,0,Math.PI*2);
-    const g=ctx.createRadialGradient(-r*0.22,-r*0.3,r*0.06,0,0,r);
-    g.addColorStop(0,_lx(c.col,48));g.addColorStop(0.52,c.col);g.addColorStop(1,c.shade);
-    ctx.fillStyle=g;ctx.fill();
-    if(this.crackLv>0){
-      ctx.strokeStyle='rgba(0,0,0,0.65)';ctx.lineWidth=1.8;ctx.beginPath();
-      ctx.moveTo(-4,-16);ctx.lineTo(10,3);ctx.lineTo(2,22);
-      if(this.crackLv>1){ctx.moveTo(-18,0);ctx.lineTo(-7,18);ctx.moveTo(14,-12);ctx.lineTo(6,8);}
-      if(this.crackLv>2){ctx.moveTo(-22,-4);ctx.lineTo(-12,18);ctx.moveTo(12,-22);ctx.lineTo(22,6);ctx.moveTo(-3,-26);ctx.lineTo(7,-2);}
-      ctx.stroke();
-    }
-    ctx.restore();
+
+    // Charge glow — drawn for BOTH sprite and procedural
+    ctx.globalAlpha=1;
     if(this.charging){
       const t=Math.min((Date.now()-this.chargeT)/MAX_CHARGE_MS,1);
       const p=(Math.sin(Date.now()*0.015)+1)*0.5;
@@ -905,6 +914,7 @@ class Egg{
       ctx.fillStyle=bg;ctx.fillRect(-bw/2,r+9,bw*t,bh);
     }
     if(this.dead){
+      ctx.globalAlpha=1;
       for(let i=0;i<8;i++){
         const ang=(i/8)*Math.PI*2+(Date.now()*0.0008);
         ctx.fillStyle=c.col;ctx.beginPath();
@@ -1133,6 +1143,16 @@ function updateFight(dt){
     // Skip physics if no eggs yet or game not running
     if(!p1||!p2||cdActive||rndEnd||matchDone)return;
 
+    // Guest: update p2 charging state locally from own inputs (for animation)
+    if(K.d&&!p2._pd&&p2.onGnd&&!p2.charging){
+      p2.charging=true; p2.chargeT=Date.now();
+      p2.chargeDX=K.l?-1:K.r?1:p2.facing;
+    }
+    if(p2.charging&&K.l)p2.chargeDX=-1;
+    else if(p2.charging&&K.r)p2.chargeDX=1;
+    if(!K.d&&p2.charging){p2.charging=false;}
+    p2._pd=K.d;
+
     // Lightweight local physics (no collision/AI — just keep motion smooth)
     [p1,p2].forEach(e=>{
       if(e.dead)return;
@@ -1141,6 +1161,17 @@ function updateFight(dt){
       e.x+=e.vx*(dt/16); e.y+=e.vy*(dt/16);
       if(e.y>=GROUND){e.y=GROUND;e.onGnd=true;e.vy=0;}
       e.rot+=e.vx*0.042*(dt/16);
+      // Local animation transitions for p2 (guest's own char)
+      if(e===p2&&!e.dead){
+        if(e.charging)e._sa('charge');
+        else if(!e.onGnd&&e.anim!=='superjump')e._sa('jump');
+        else if(e.onGnd){
+          if(e.anim==='jump'||e.anim==='superjump')e._sa('idle');
+          if(Math.abs(e.vx)>0.7)e._sa('roll');
+          else if(e.anim==='roll'&&Math.abs(e.vx)<0.4)e._sa('idle');
+        }
+        if(e.anim==='hit'&&e.hitFlash<=0)e._sa('idle');
+      }
       e.frameT+=dt;
       const cfg=e.spriteCfg[e.anim]||{f:4,fps:150};
       if(e.frameT>=cfg.fps){e.frameT=0;e.frameIdx=(e.frameIdx+1)%cfg.f;}
@@ -1249,19 +1280,27 @@ function guestApplyState(d){
 
   p2.hp=d.p2.hp; p2.crackLv=d.p2.cl; p2.facing=d.p2.fc;
   p2.hitFlash=d.p2.hf; p2.dead=d.p2.dead===1;
-  p2.charging=d.p2.ch===1; p2.onGnd=d.p2.onG===1;
-  if(p2.charging) p2.chargeT=Date.now()-d.p2.cT*MAX_CHARGE_MS;
+  // p2.charging: trust local K.d — don't let stale host state kill the glow
+  p2.onGnd=d.p2.onG===1;
+  if(d.p2.ch===1&&!p2.charging){p2.charging=true;p2.chargeT=Date.now()-d.p2.cT*MAX_CHARGE_MS;}
   if(p2.anim!==d.p2.an){p2.anim=d.p2.an;p2.frameIdx=d.p2.fi;p2.frameT=0;}
 
   // ── Positions — lerp to avoid jumps ───────────
-  const lerp=(cur,tgt,vel)=>{
+  // P2 = guest's own character: snap more aggressively (guest has local prediction)
+  // P1 = host character: gentle lerp (guest only watches)
+  const lerpP1=(cur,tgt)=>{
     const err=Math.abs(tgt-cur);
-    if(err>80)return tgt;           // snap if too far off
-    return cur+(tgt-cur)*0.35;      // gentle lerp otherwise
+    if(err>60)return tgt;
+    return cur+(tgt-cur)*0.45;
   };
-  if(!p1.dead){p1.x=lerp(p1.x,d.p1.x,d.p1.vx);p1.y=lerp(p1.y,d.p1.y,d.p1.vy);}
+  const lerpP2=(cur,tgt)=>{
+    const err=Math.abs(tgt-cur);
+    if(err>30)return tgt;           // snap sooner for own character
+    return cur+(tgt-cur)*0.65;     // stronger correction
+  };
+  if(!p1.dead){p1.x=lerpP1(p1.x,d.p1.x);p1.y=lerpP1(p1.y,d.p1.y);}
   else{p1.x=d.p1.x;p1.y=d.p1.y;}
-  if(!p2.dead){p2.x=lerp(p2.x,d.p2.x,d.p2.vx);p2.y=lerp(p2.y,d.p2.y,d.p2.vy);}
+  if(!p2.dead){p2.x=lerpP2(p2.x,d.p2.x);p2.y=lerpP2(p2.y,d.p2.y);}
   else{p2.x=d.p2.x;p2.y=d.p2.y;}
   // Always sync velocity (used for extrapolation next frame)
   p1.vx=d.p1.vx;p1.vy=d.p1.vy;
@@ -1994,13 +2033,19 @@ function drawMPLobby(){
       _rr(sx2+i*cw2+3,sy2+3,cw2-6,ch2-6,10);ctx.stroke();
     }
 
-    // Egg
-    const r=30;
-    const g=ctx.createRadialGradient(cx-r*0.22,cy-r*0.3,4,cx,cy,r);
-    g.addColorStop(0,_lx(c.col,50));g.addColorStop(0.55,c.col);g.addColorStop(1,c.shade);
-    ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(cx,cy,r*0.82,r,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.14)';
-    ctx.beginPath();ctx.ellipse(cx-r*0.18,cy-r*0.3,r*0.28,r*0.16,-0.4,0,Math.PI*2);ctx.fill();
+    // Character sprite (same as charsel)
+    const previewImg=charSelImgs[i];
+    if(previewImg&&previewImg.complete&&previewImg.naturalWidth>0){
+      const sprSz=96;
+      ctx.drawImage(previewImg,0,0,128,128,cx-sprSz/2,sy2+8,sprSz,sprSz);
+    }else{
+      const r=30;
+      const g=ctx.createRadialGradient(cx-r*0.22,cy-r*0.3,4,cx,cy,r);
+      g.addColorStop(0,_lx(c.col,50));g.addColorStop(0.55,c.col);g.addColorStop(1,c.shade);
+      ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(cx,cy,r*0.82,r,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,0.14)';
+      ctx.beginPath();ctx.ellipse(cx-r*0.18,cy-r*0.3,r*0.28,r*0.16,-0.4,0,Math.PI*2);ctx.fill();
+    }
 
     // Name — inside card, above bottom edge
     ctx.fillStyle=isMine?'#FFD700':isOpp?c.col:'rgba(255,255,255,0.4)';
@@ -2030,7 +2075,7 @@ function drawMPLobby(){
   const descY=sy2+ch2+14;
   // Map + opponent name compact row (no spe description)
   ctx.fillStyle='rgba(255,255,255,0.22)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';
-  ctx.fillText(`🗺 ${MAP_CFG[p1ci].name}  ·  vs ${CHARS[oppCI].name}`,W/2,descY);
+  ctx.fillText(`vs ${CHARS[oppCI].name}`,W/2,descY);
 
   // Controls guide — same as single player, centered lower
   if(!isTouchDev()) drawCtrlGuide(W/2-142,H-196);
