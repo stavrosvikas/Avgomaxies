@@ -868,11 +868,15 @@ class Egg{
     const fh=this.hitFlash>0&&Math.floor(this.hitFlash/55)%2===0;
     const spr=this.sprites[this.anim];
     if(spr&&spr.complete&&spr.naturalWidth>0){
-      const sprOff=fW-(fW*0.82);
+      // Ground anchor: pixel 104/128 in local coords = 104-64 = +40 from center
+      // So translate y must be this.y - 40 to land feet on ground
+      const sprOff=40;
+      // Draw sprite at 92px (≈ ER*2) so visual matches collision radius
+      const dSz=92;
       ctx.save();ctx.translate(this.x,this.y-sprOff);
       if(this.facing<0)ctx.scale(-1,1);
       if(fh)ctx.globalAlpha=0.35;
-      ctx.drawImage(spr,this.frameIdx*fW,0,fW,fW,-fW/2,-fW/2,fW,fW);
+      ctx.drawImage(spr,this.frameIdx*fW,0,fW,fW,-dSz/2,-dSz/2,dSz,dSz);
       ctx.restore();return;
     }
     // Placeholder
