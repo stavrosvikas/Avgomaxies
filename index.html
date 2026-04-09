@@ -334,6 +334,7 @@ const SFX=(()=>{
 
   function playBGM(name){
     if(!AC)return;stopBGM();
+    bgmName=name; // set immediately — race condition guard uses this
     fetch(`assets/sounds/music_${name}.mp3`).then(r=>r.ok?r.arrayBuffer():null)
       .then(b=>b&&AC.decodeAudioData(b)).then(dec=>{
         if(!dec||bgmName!==name)return; // abandoned if stopBGM called during fetch
@@ -861,7 +862,9 @@ class Egg{
     }
     triggerShake(Math.min(d*0.6,12));
     spawnSparks(hitX||this.x, hitY||this.y-20, d, this.C.col);
-    SFX.playHit(this.ci,d);
+    // Play attacker's voice (not victim's)
+    const attackerCi=attackerIsP1!==undefined?(attackerIsP1?p1ci:p2ci):this.ci;
+    SFX.playHit(attackerCi,d);
     haptic(Math.min(15+Math.round(d*1.5),55));
     if(this.hp<=0){this.dead=true;this._sa('dead');SFX.playDead(this.ci);triggerShake(18);haptic(100);}
   }
