@@ -1786,7 +1786,12 @@ function drawHBar(x,y,w,h,ratio,col,dir){
   ctx.strokeStyle=col+'55'; ctx.lineWidth=1.5; ctx.strokeRect(x,y,w,h);
 }
 function drawCtrlRef(){
-  if(showCtrlBtns())return;
+  if(showCtrlBtns()){
+    // Mobile: show button legend
+    ctx.fillStyle='rgba(255,255,255,0.22)';ctx.font="11px 'JetBrains Mono',monospace";ctx.textAlign='center';
+    ctx.fillText('↑ άλμα  ·  ↓ κράτα=φόρτιση  ·  ↓ άφεσε=επίθεση  ·  ← → κίνηση',W/2,H-8);
+    return;
+  }
   ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='left';
   ctx.fillText('← → move  ↑ jump  ↓ hold=charge / release=attack',10,H-10);
 }
@@ -1932,10 +1937,10 @@ function drawCharSel(){
   ctx.font="14px 'JetBrains Mono',monospace";ctx.textAlign='center';ctx.fillText('▼',arrowX,sy2-5);ctx.restore();
 
   // Controls guide — only on non-touch
-  if(!isTouchDev()) drawCtrlGuide(W/2-142,H-196);
+  drawCtrlGuide(W/2-142,H-196);
 
   ctx.fillStyle='rgba(255,255,255,0.28)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';
-  ctx.fillText('← →  επιλογή   ·   ENTER ή κλικ για επιβεβαίωση',W/2,H-18);
+  ctx.fillText(isTouchDev()?'← → swipe για επιλογή   ·   tap για επιβεβαίωση':'← →  επιλογή   ·   ENTER ή κλικ για επιβεβαίωση',W/2,H-18);
 }
 function drawMPLobby(){
   _menuBg();
@@ -2078,7 +2083,7 @@ function drawMPLobby(){
   ctx.fillText(`vs ${CHARS[oppCI].name}`,W/2,descY);
 
   // Controls guide — same as single player, centered lower
-  if(!isTouchDev()) drawCtrlGuide(W/2-142,H-196);
+  drawCtrlGuide(W/2-142,H-196);
 
   // Ready status — compact single line above button
   const readyY=H-76;
