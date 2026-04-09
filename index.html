@@ -868,11 +868,9 @@ class Egg{
     const fh=this.hitFlash>0&&Math.floor(this.hitFlash/55)%2===0;
     const spr=this.sprites[this.anim];
     if(spr&&spr.complete&&spr.naturalWidth>0){
-      // Sprite ground anchor at pixel 104/128 (82%) — offset so feet sit on this.y
-      const sprOff=fW-(fW*0.82); // = 128-104 = 24px from bottom
+      const sprOff=fW-(fW*0.82);
       ctx.save();ctx.translate(this.x,this.y-sprOff);
       if(this.facing<0)ctx.scale(-1,1);
-      ctx.rotate(this.rot);  // roll rotation — same as procedural
       if(fh)ctx.globalAlpha=0.35;
       ctx.drawImage(spr,this.frameIdx*fW,0,fW,fW,-fW/2,-fW/2,fW,fW);
       ctx.restore();return;
