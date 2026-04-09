@@ -8,14 +8,16 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Egg Battle">
 <meta name="theme-color" content="#04000C">
-<link rel="icon" type="image/png" href="assets/favicon.png">
-<link rel="apple-touch-icon" href="assets/favicon.png">
+<link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/favicon-180.png">
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;700&subset=greek&display=block" as="style">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;700&subset=greek&display=block">
-<title>Egg Battle</title>
+<title>Luben Αυγομαχίες</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:100%;height:100%;background:#000;overflow:hidden;touch-action:none;}
@@ -23,24 +25,27 @@ body{display:flex;align-items:center;justify-content:center;}
 #gc{display:block;touch-action:none;}
 
 /* Control overlay — sized & positioned by JS to match canvas exactly */
-#mc{position:fixed;pointer-events:none;display:none;z-index:10;}
-.cb{
-  position:absolute;width:70px;height:70px;
-  background:rgba(255,255,255,0.10);
-  border:2px solid rgba(255,255,255,0.25);
-  border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-size:26px;color:rgba(255,255,255,0.85);
-  pointer-events:all;user-select:none;-webkit-user-select:none;
-  transition:background 0.07s,transform 0.07s;cursor:pointer;
-}
-.cb:active,.cb.on{background:rgba(255,210,0,0.32);border-color:rgba(255,210,0,0.6);transform:scale(0.90);}
-/* LEFT THUMB mirrors RIGHT THUMB exactly */
-#cb-u { left:3%;  bottom:22%; }
-#cb-d { left:11%; bottom:11%; }
-#cb-r { right:3%;  bottom:22%; }
-#cb-l { right:11%; bottom:11%; }
 
-/* Back button for mobile (non-fight screens) */
+
+
+/* ── 4 DIRECTIONAL BUTTONS (mobile fight overlay) ── */
+#mc{position:fixed;pointer-events:none;display:none;z-index:20;top:0;left:0;width:100%;height:100%;}
+.cb{
+  position:absolute;width:68px;height:68px;
+  background:rgba(0,0,0,0.45);
+  border:2px solid rgba(255,255,255,0.28);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:24px;color:rgba(255,255,255,0.85);
+  pointer-events:all;user-select:none;-webkit-user-select:none;
+  touch-action:none;cursor:pointer;
+  transition:background 0.07s,transform 0.07s;
+}
+.cb:active,.cb.on{background:rgba(255,210,0,0.35);border-color:rgba(255,210,0,0.7);transform:scale(0.90);}
+/* Layout: ↑↓ on left, ←→ on right (fighting game style) */
+#cb-u{left:3%;  bottom:22%;}
+#cb-d{left:11%; bottom:11%;}
+#cb-l{right:11%;bottom:11%;}
+#cb-r{right:3%; bottom:22%;}
 #btn-back{
   position:fixed;top:12px;left:12px;z-index:30;
   padding:8px 18px;border-radius:20px;
@@ -110,6 +115,12 @@ body{display:flex;align-items:center;justify-content:center;}
   <div class="cb" id="cb-l">←</div>
   <div class="cb" id="cb-r">→</div>
 </div>
+    <div id="joy-knob"></div>
+  </div>
+  <div id="act-zone">
+    <div id="act-btn">▲</div>
+  </div>
+</div>
 <div id="btn-back" onclick="handleBack()">← ΠΙΣΩ</div>
 <div id="btn-mute" onclick="handleMuteClick()" title="Mute / Unmute">🔊</div>
 <div id="nick-overlay">
@@ -137,20 +148,21 @@ const DMG_MULT=0.85,MAX_HP=100,ROUNDS_WIN=2;
 
 // AI difficulty: starts very easy, ramps slowly
 function aiDiff(s){
-  if(s<=4)  return 0.4+s*0.25;
-  if(s<=10) return 1.5+(s-4)*0.55;
-  if(s<=18) return 4.8+(s-10)*0.65;
-  return Math.min(12,10+(s-18)*0.3);
+  if(s<=2)  return 0.2+s*0.1;           // stages 1-2: very passive
+  if(s<=6)  return 0.4+(s-2)*0.2;       // stages 3-6: gentle ramp
+  if(s<=12) return 1.2+(s-6)*0.45;      // stages 7-12: medium
+  if(s<=20) return 3.9+(s-12)*0.55;     // stages 13-20: hard
+  return Math.min(12,8.3+(s-20)*0.3);
 }
 
 // ════════════════════════════════════════════════
 //  CHARACTERS
 // ════════════════════════════════════════════════
 const CHARS=[
-  {id:'character01',name:'SUNNY',  col:'#F5E230',shade:'#B09800'},
-  {id:'character02',name:'BRUNO',  col:'#9B6B3A',shade:'#5C3418'},
-  {id:'character03',name:'ALBA',   col:'#F2E8D0',shade:'#C8A880'},
-  {id:'character04',name:'NERO',   col:'#1E1E1E',shade:'#0A0A0A'},
+  {id:'character01',name:'ΕΥΑΓΓΕΛΑΤΟΣ',col:'#F5E230',shade:'#B09800'},
+  {id:'character02',name:'EGG7000',    col:'#3CB371',shade:'#1A5C35'},
+  {id:'character03',name:'MAREEGONA', col:'#F2E8D0',shade:'#C8A880'},
+  {id:'character04',name:'ΑΥΓΥΛΑΣ',   col:'#1E1E1E',shade:'#0A0A0A'},
   {id:'character05',name:'ΜΗΤΣΟΦΛΑΚΗΣ',col:'#2E8FD8',shade:'#1050A0'},
   {id:'character06',name:'ΑΥΓΟΥΜΠΑΣ',col:'#E03030',shade:'#8A1010'},
 ];
@@ -174,7 +186,10 @@ const SFX=(()=>{
       sfxG=AC.createGain();sfxG.gain.value=0.65;sfxG.connect(AC.destination);
     }catch(e){}
   }
-  function resume(){if(AC&&AC.state==='suspended')AC.resume();}
+  function resume(){
+    if(AC&&AC.state==='suspended')AC.resume();
+    preloadVoices(); // start preloading on first user gesture
+  }
 
   function tone(f1,f2,dur,type,vol=0.45,dst=null){
     if(!AC||muted)return;
@@ -194,6 +209,70 @@ const SFX=(()=>{
     const s=AC.createBufferSource(),g=AC.createGain();
     s.buffer=buf;g.gain.value=vol;s.connect(g);g.connect(sfxG);s.start();
   }
+  // ── Character voice map: id → filename ──────────────────────────────
+  // Files must be in assets/sounds/ with these exact names
+  const CHAR_SND={
+    'character01':'evaggelatos',  // ΕΥΑΓΓΕΛΑΤΟΣ
+    'character02':'dpg',          // EGG7000
+    'character03':'marigkona',    // MAREEGONA
+    'character04':'akylas',       // ΑΥΓΥΛΑΣ
+    'character05':'mitsotakis',   // ΜΗΤΣΟΦΛΑΚΗΣ
+    'character06':'koutsoumpas',  // ΑΥΓΟΥΜΠΑΣ
+  };
+
+  // Exclusive voice channel — only one character voice plays at a time
+  let _voiceSrc=null;
+  let _voiceBusy=false;
+  let _voiceBusyTimer=null;
+
+  function playVoice(url, onEnd){
+    if(!AC||muted)return;
+    // Stop currently playing voice
+    if(_voiceSrc){try{_voiceSrc.stop();}catch(e){}_voiceSrc=null;}
+    clearTimeout(_voiceBusyTimer);
+    _voiceBusy=true;
+
+    function _startVoice(buf){
+      if(!buf)return;
+      _voiceSrc=AC.createBufferSource();
+      _voiceSrc.buffer=buf;
+      const g=AC.createGain(); g.gain.value=0.9;
+      _voiceSrc.connect(g); g.connect(sfxG);
+      _voiceSrc.start();
+      // Mark busy for duration of sample
+      const durMs=Math.round(buf.duration*1000)+80;
+      _voiceBusyTimer=setTimeout(()=>{_voiceBusy=false;if(onEnd)onEnd();},durMs);
+      _voiceSrc.onended=()=>{_voiceSrc=null;};
+    }
+
+    if(loaded[url]){_startVoice(loaded[url]);return;}
+    fetch(url).then(r=>r.ok?r.arrayBuffer():null)
+      .then(b=>b&&AC.decodeAudioData(b))
+      .then(dec=>{if(dec){loaded[url]=dec;_startVoice(dec);}})
+      .catch(()=>{});
+  }
+
+  function stopVoice(){
+    if(_voiceSrc){try{_voiceSrc.stop();}catch(e){}_voiceSrc=null;}
+    clearTimeout(_voiceBusyTimer);_voiceBusy=false;
+  }
+
+  // Preload all character voices + intro at game start
+  function preloadVoices(){
+    if(!AC)return;
+    const urls=[
+      'assets/sounds/intro.wav',
+      ...Object.values(CHAR_SND).map(n=>`assets/sounds/${n}_hit.wav`),
+    ];
+    urls.forEach(url=>{
+      if(loaded[url])return;
+      fetch(url).then(r=>r.ok?r.arrayBuffer():null)
+        .then(b=>b&&AC.decodeAudioData(b))
+        .then(dec=>{if(dec)loaded[url]=dec;})
+        .catch(()=>{});
+    });
+  }
+
   function tryFile(url){
     if(!AC||muted)return;
     if(loaded[url]){const s=AC.createBufferSource();s.buffer=loaded[url];s.connect(sfxG);s.start();return;}
@@ -202,9 +281,9 @@ const SFX=(()=>{
       .catch(()=>{});
   }
 
-  // Cut all SFX immediately (match end, etc.)
+  // Cut all SFX immediately
   function stopAllSFX(){
-    _clearTimers();
+    _clearTimers();stopVoice();
     if(!AC||!sfxG)return;
     const now=AC.currentTime;
     sfxG.gain.cancelScheduledValues(now);
@@ -215,29 +294,42 @@ const SFX=(()=>{
   const playJump=()=>tone(200,420,0.14,'sine',0.4);
   const playCharge=t=>{tone(60+t*100,70+t*110,0.22,'sawtooth',0.12+t*0.18);};
   const playRelease=t=>{tone(180+t*200,80,0.25,'sawtooth',0.5);_t(()=>noise(0.12,0.38),28);};
+
   const playHit=(ci,pow)=>{
     const bf=[220,175,290,145,255,210];
-    const f=bf[ci]*(1+pow*0.014);
+    const f=bf[ci%6]*(1+pow*0.014);
     tone(f*1.4,f,0.12,'triangle',0.35+pow*0.035);
     _t(()=>noise(0.07,0.28+pow*0.025),38);
-    tryFile(`assets/sounds/${CHARS[ci].id}_hit.wav`);
+    // Unique character voice — exclusive, won't overlap
+    const snd=CHAR_SND[CHARS[ci]?.id];
+    if(snd)playVoice(`assets/sounds/${snd}_hit.wav`);
   };
+
   const playDead=ci=>{
     tone(300,70,0.6,'sawtooth',0.55);
     _t(()=>noise(0.3,0.48),80);
-    tryFile(`assets/sounds/${CHARS[ci].id}_dead.wav`);
+    // No _dead.wav files — procedural only
   };
-  // playWin/playLose cancel pending tones first
+
+  // Intro voice: plays during countdown, stops when fight starts
+  const playIntro=()=>{
+    playVoice('assets/sounds/intro.wav');
+  };
+
   const playWin=()=>{
-    _clearTimers();
+    _clearTimers();stopVoice();
     [523,659,784,1047].forEach((f,i)=>_t(()=>tone(f,f,0.28,'sine',0.4),i*180));
   };
   const playLose=()=>{
-    _clearTimers();
+    _clearTimers();stopVoice();
     [400,350,280,200].forEach((f,i)=>_t(()=>tone(f,f,0.3,'triangle',0.3),i*200));
   };
   const playCountdown=()=>tone(880,880,0.1,'square',0.35);
-  const playRoundStart=()=>{tone(440,660,0.2,'sine',0.5);_t(()=>tone(660,880,0.15,'sine',0.5),200);};
+  const playRoundStart=()=>{
+    stopVoice(); // cut intro if still playing
+    tone(440,660,0.2,'sine',0.5);
+    _t(()=>tone(660,880,0.15,'sine',0.5),200);
+  };
 
   function playBGM(name){
     if(!AC)return;stopBGM();
@@ -262,7 +354,7 @@ const SFX=(()=>{
   function toggleMute(){muted=!muted;if(musG)musG.gain.value=muted?0:0.35;if(sfxG)sfxG.gain.value=muted?0:0.65;return muted;}
   const isMuted=()=>muted;
 
-  return{init,resume,playJump,playCharge,playRelease,playHit,playDead,playWin,playLose,playCountdown,playRoundStart,switchBGM,stopBGM,stopAllSFX,toggleMute,isMuted};
+  return{init,resume,playJump,playCharge,playRelease,playHit,playDead,playWin,playLose,playCountdown,playRoundStart,playIntro,switchBGM,stopBGM,stopAllSFX,toggleMute,isMuted};
 })();
 
 // ════════════════════════════════════════════════
@@ -351,6 +443,7 @@ function drawParticles(){
 let cdCount=0,cdTimer=0,cdActive=false;
 function startCountdown(){
   cdCount=3;cdTimer=900;cdActive=true;
+  SFX.playIntro(); // play intro voice during countdown
 }
 
 // Perfect round tracking (no damage received)
@@ -377,10 +470,10 @@ let mpState='idle', mpErr='', _mpTimeout=null;
 //  INPUT
 // ════════════════════════════════════════════════
 const K={l:false,r:false,u:false,d:false},Kp={l:false,r:false,u:false,d:false};
-// input state (no _p2upPrev — replaced by _prevP1u/_prevP2u)
 
+// ── 4-button touch wiring ────────────────────────
 function bindBtn(id,k){
-  const el=document.getElementById(id);
+  const el=document.getElementById(id);if(!el)return;
   const on=()=>{K[k]=true;el.classList.add('on');};
   const off=()=>{K[k]=false;el.classList.remove('on');};
   el.addEventListener('touchstart',e=>{on();e.preventDefault();},{passive:false});
@@ -390,6 +483,8 @@ function bindBtn(id,k){
   document.addEventListener('mouseup',off);
 }
 ['u','d','l','r'].forEach(k=>bindBtn('cb-'+k,k));
+
+
 
 document.addEventListener('keydown',e=>{
   if(e.repeat)return;
@@ -451,33 +546,14 @@ function resize(){
   if(cw/ch>ratio)cw=ch*ratio;else ch=cw/ratio;
   canvas.width=W;canvas.height=H;
   canvas.style.width=cw+'px';canvas.style.height=ch+'px';
-
-  const mc=document.getElementById('mc');
-  const ox=Math.round((window.innerWidth-cw)/2);
-  const oy=Math.round((window.innerHeight-ch)/2);
-  mc.style.left=ox+'px'; mc.style.top=oy+'px';
-  mc.style.width=cw+'px'; mc.style.height=ch+'px';
-  mc.style.right='auto'; mc.style.bottom='auto';
-
-  const bsz=Math.max(44,Math.min(72,Math.round(ch*0.13)));
-  document.querySelectorAll('.cb').forEach(el=>{
-    el.style.width=bsz+'px'; el.style.height=bsz+'px';
-    el.style.fontSize=Math.round(bsz*0.37)+'px';
-  });
-
   updateMobileUI();
 }
 
 function updateMobileUI(){
   const mc=document.getElementById('mc');
-  const showFightBtns=showCtrlBtns()&&scr==='FIGHT';
-  mc.style.display=showFightBtns?'block':'none';
-  // Mute button: top-right during fight (avoids fight buttons), bottom-right otherwise
+  if(mc) mc.style.display=(showCtrlBtns()&&scr==='FIGHT')?'block':'none';
   const mute=document.getElementById('btn-mute');
-  if(mute){
-    if(showFightBtns){mute.style.top='10px';mute.style.bottom='auto';}
-    else{mute.style.top='auto';mute.style.bottom='10px';}
-  }
+  if(mute){mute.style.top='auto';mute.style.bottom='10px';}
   updateBackBtn();
 }
 function updateBackBtn(){
@@ -703,6 +779,9 @@ class Egg{
     }
     this._pd=d;
     if(this.charging&&isP){
+      // Direction updates live while holding — player can aim until release
+      if(l)this.chargeDX=-1;
+      else if(r)this.chargeDX=1;
       const now=Date.now();
       if(now-chargeLastSfx>200){chargeLastSfx=now;SFX.playCharge(Math.min((now-this.chargeT)/MAX_CHARGE_MS,1));}
     }
@@ -1009,22 +1088,27 @@ function initFight(){
 function collide(a,b){
   const dx=b.x-a.x,dy=b.y-a.y,dist=Math.sqrt(dx*dx+dy*dy),minD=ER*1.62;
   if(dist>=minD||dist<0.1)return;
-  const aS=Math.sqrt(a.vx*a.vx+a.vy*a.vy),bS=Math.sqrt(b.vx*b.vx+b.vy*b.vy);
+  const nx=dx/dist,ny=dy/dist;
+  // Velocity of each egg projected TOWARD the other (approach component)
+  // Positive = moving toward opponent, negative = moving away
+  const aApproach =  a.vx*nx + a.vy*ny;   // a moving toward b
+  const bApproach = -b.vx*nx - b.vy*ny;   // b moving toward a
   const relV=Math.sqrt((a.vx-b.vx)**2+(a.vy-b.vy)**2);
   const midX=(a.x+b.x)/2, midY=(a.y+b.y)/2-20;
   if(relV>4.5){
-    if(aS>2.5)b.takeDamage(aS*DMG_MULT, midX, midY, true);   // a=p1 hits b=p2
-    if(bS>2.5)a.takeDamage(bS*DMG_MULT, midX, midY, false);  // b=p2 hits a=p1
-    const nx=dx/dist,ny=dy/dist,bo=relV*0.44;
+    // Only deal damage if actually approaching the opponent (not bouncing away)
+    // b takes damage from a's approach speed — a hit b
+    if(aApproach>2.5) b.takeDamage(aApproach*DMG_MULT, midX, midY, true);
+    // a takes damage from b's approach speed — b hit a
+    if(bApproach>2.5) a.takeDamage(bApproach*DMG_MULT, midX, midY, false);
+    const bo=relV*0.44;
     a.vx=-nx*bo*0.88;a.vy=-ny*bo*0.48;b.vx=nx*bo*0.88;b.vy=ny*bo*0.48;
     a.onGnd=false;b.onGnd=false;
   }else{
-    // Soft contact — just push apart, no damage
     const ov=(minD-dist)*0.5+0.5;
-    a.x-=(dx/dist)*ov;b.x+=(dx/dist)*ov;
-    // Small velocity correction to prevent overlap oscillation
+    a.x-=nx*ov;b.x+=nx*ov;
     const sep=0.3;
-    a.vx-=(dx/dist)*sep;b.vx+=(dx/dist)*sep;
+    a.vx-=nx*sep;b.vx+=nx*sep;
   }
 }
 function updateFight(dt){
@@ -1272,10 +1356,8 @@ function initPeer(host){
   peer.on('open',id=>{
     myPeerId=id;
     mpState=isHost?'waiting_guest':'connecting';
-    console.log('[PeerJS] My ID:', id);
   });
   peer.on('connection',c=>{
-    console.log('[PeerJS] Incoming connection from:', c.peer);
     conn=c; setupConn();
   });
   peer.on('error',e=>{
@@ -1301,7 +1383,6 @@ function initPeer(host){
 function connectToPeer(id){
   if(!peer)return;
   mpState='connecting'; mpErr='';
-  console.log('[PeerJS] Connecting to:', id);
   conn=peer.connect(id,{reliable:true,serialization:'json'});
   setupConn();
   if(_mpTimeout)clearTimeout(_mpTimeout);
@@ -1317,7 +1398,6 @@ function setupConn(){
   conn.on('open',()=>{
     mpState='connected';
     if(_mpTimeout){clearTimeout(_mpTimeout);_mpTimeout=null;}
-    console.log('[PeerJS] Connection open!');
     // Exchange initial state
     const myIdx=isHost?p1ci:p2ci;
     conn.send({t:'char',i:myIdx});
@@ -1369,7 +1449,6 @@ function mpRetry(){
     }else{scr='MODE';updateMobileUI();}
   }
 }
-
 
 // ════════════════════════════════════════════════
 //  DRAW HELPERS
@@ -1423,16 +1502,16 @@ const MAP_CFG=[
     pillarAlpha:[0.28,0.14],
     name:'Χρυσή Έρημος'
   },
-  // 1 · Bruno · Ancient Cave
+  // 1 · EGG7000 · Toxic Swamp
   {
-    sky:['#080400','#180A00','#0A0600'],
-    radial:'rgba(140,70,10,0.12)',
-    gridCol:'rgba(130,75,15,',gridAlpha:[0.06,0.16],
-    glowOuter:'rgba(180,90,10,0.85)',glowInner:'rgba(220,120,20,0.25)',
-    ground:['rgba(50,18,2,0.8)','rgba(10,3,0,1)'],
-    pillars:['#3A1A00','#562800','#2E1200'],
-    pillarAlpha:[0.3,0.16],
-    name:'Αρχαίο Σπήλαιο'
+    sky:['#000A02','#001A06','#000C03'],
+    radial:'rgba(0,180,60,0.13)',
+    gridCol:'rgba(0,200,70,',gridAlpha:[0.07,0.22],
+    glowOuter:'rgba(0,220,80,0.9)',glowInner:'rgba(60,255,120,0.3)',
+    ground:['rgba(4,40,10,0.82)','rgba(0,8,2,1)'],
+    pillars:['#003A10','#005518','#002208'],
+    pillarAlpha:[0.32,0.16],
+    name:'Τοξικό Έλος'
   },
   // 2 · Alba · White Marble Temple
   {
@@ -1731,22 +1810,24 @@ function _menuBg(){
 }
 function drawIntro(){
   _menuBg();
+  // Logo — square ratio (~1:1), centered, fills most of screen vertically
+  const logoSize=Math.min(W*0.52, H*0.68); // square
   if(logoImg&&logoImg.complete&&logoImg.naturalWidth>0){
-    const lw=520,lh=lw*(logoImg.naturalHeight/logoImg.naturalWidth);
-    ctx.drawImage(logoImg,W/2-lw/2,H*0.14,lw,lh);
+    ctx.drawImage(logoImg,W/2-logoSize/2,H*0.05,logoSize,logoSize);
   }else{
     ctx.save();ctx.textAlign='center';
     ctx.shadowBlur=50;ctx.shadowColor='rgba(155,48,255,0.6)';
-    ctx.font=`bold 26px 'Press Start 2P',monospace`;ctx.fillStyle='#FFFFFF';ctx.fillText('EGG',W/2,H*0.32);
-    ctx.shadowBlur=30;ctx.shadowColor='#FFD700';ctx.fillStyle='#FFD700';
-    ctx.font=`bold 22px 'Press Start 2P',monospace`;ctx.fillText('BATTLE',W/2,H*0.46);
+    ctx.font=`bold 26px 'Press Start 2P',monospace`;ctx.fillStyle='#FFFFFF';
+    ctx.fillText('LUBEN',W/2,H*0.30);
+    ctx.shadowBlur=30;ctx.shadowColor='#F90';ctx.fillStyle='#F90';
+    ctx.font=`bold 18px 'Press Start 2P',monospace`;
+    ctx.fillText('ΑΥΓΟΜΑΧΙΕΣ',W/2,H*0.44);
     ctx.shadowBlur=0;ctx.restore();
   }
-  ctx.strokeStyle='rgba(155,48,255,0.4)';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(W/2-140,H*0.56);ctx.lineTo(W/2+140,H*0.56);ctx.stroke();
   if(blink){
-    ctx.fillStyle='rgba(255,255,255,0.82)';ctx.font=`bold 16px 'JetBrains Mono',monospace`;
-    ctx.textAlign='center';ctx.fillText('ΠΑΤΑ ΟΠΟΥΔΗΠΟΤΕ',W/2,H*0.82);
+    ctx.fillStyle='rgba(255,255,255,0.82)';
+    ctx.font=`bold 16px 'JetBrains Mono',monospace`;
+    ctx.textAlign='center';ctx.fillText('ΠΑΤΑ ΟΠΟΥΔΗΠΟΤΕ',W/2,H*0.84);
   }
   if(hs>0){
     _rr(W/2-135,H-44,270,28,6);ctx.fillStyle='rgba(0,0,0,0.4)';ctx.fill();
@@ -2107,7 +2188,6 @@ function checkUrl(){
     peer.on('open',id=>{
       myPeerId=id;
       mpState='connecting';
-      console.log('[PeerJS] Guest ID:', id, '→ connecting to', r);
       connectToPeer(r);
     });
     peer.on('error',e=>{
