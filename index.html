@@ -404,6 +404,8 @@ let hs=scores.length?Math.max(...scores.map(s=>s.streak)):0;
 let rw=[0,0],roundMsg='',rndTimer=0,rndWinner='',rndEnd=false,matchDone=false;
 let nickInput='',collectNick=false,blink=true,blinkT=0,chargeLastSfx=0,copiedFeedback=0;
 let logoImg=null;
+// Preload idle sprites for char select preview
+const charSelImgs=CHARS.map(c=>{const img=new Image();img.src=`assets/characters/${c.id}/idle.png`;return img;});
 
 // Screen shake
 let shakeX=0,shakeY=0,shakePow=0;
@@ -866,10 +868,13 @@ class Egg{
     const fh=this.hitFlash>0&&Math.floor(this.hitFlash/55)%2===0;
     const spr=this.sprites[this.anim];
     if(spr&&spr.complete&&spr.naturalWidth>0){
-      ctx.save();ctx.translate(this.x,this.y-r);
+      // Sprite ground anchor at pixel 104/128 (82%) — offset so feet sit on this.y
+      const sprOff=fW-(fW*0.82); // = 128-104 = 24px from bottom
+      ctx.save();ctx.translate(this.x,this.y-sprOff);
       if(this.facing<0)ctx.scale(-1,1);
+      ctx.rotate(this.rot);  // roll rotation — same as procedural
       if(fh)ctx.globalAlpha=0.35;
-      ctx.drawImage(spr,this.frameIdx*fW,0,fW,128,-fW/2,-fW/2,fW,fW);
+      ctx.drawImage(spr,this.frameIdx*fW,0,fW,fW,-fW/2,-fW/2,fW,fW);
       ctx.restore();return;
     }
     // Placeholder
@@ -1864,13 +1869,21 @@ function drawCharSel(){
     }else{
       ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=0.8;_rr(sx2+i*cw2+3,sy2+3,cw2-6,ch2-6,10);ctx.stroke();
     }
-    // Egg — slightly smaller to leave room for name
-    const r=30;
-    const g=ctx.createRadialGradient(cx-r*0.22,cy-r*0.3,4,cx,cy,r);
-    g.addColorStop(0,_lx(c.col,50));g.addColorStop(0.55,c.col);g.addColorStop(1,c.shade);
-    ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(cx,cy,r*0.82,r,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.15)';
-    ctx.beginPath();ctx.ellipse(cx-r*0.18,cy-r*0.3,r*0.28,r*0.16,-0.4,0,Math.PI*2);ctx.fill();
+    // Character preview — idle sprite frame 0, or fallback oval
+    const previewImg=charSelImgs[i];
+    if(previewImg&&previewImg.complete&&previewImg.naturalWidth>0){
+      // Draw frame 0 of idle sprite, centered in card above name
+      const sprSz=96; // display size
+      ctx.drawImage(previewImg,0,0,128,128,cx-sprSz/2,sy2+8,sprSz,sprSz);
+    }else{
+      // Fallback: colored oval
+      const r=30;
+      const g=ctx.createRadialGradient(cx-r*0.22,cy-r*0.3,4,cx,cy,r);
+      g.addColorStop(0,_lx(c.col,50));g.addColorStop(0.55,c.col);g.addColorStop(1,c.shade);
+      ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(cx,cy,r*0.82,r,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,0.15)';
+      ctx.beginPath();ctx.ellipse(cx-r*0.18,cy-r*0.3,r*0.28,r*0.16,-0.4,0,Math.PI*2);ctx.fill();
+    }
     // Name — clearly inside card, well above bottom border
     ctx.fillStyle=sel?c.col:'rgba(255,255,255,0.5)';
     ctx.font=sel?`bold 13px 'JetBrains Mono',monospace`:`13px 'JetBrains Mono',monospace`;
