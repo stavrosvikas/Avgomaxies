@@ -585,6 +585,17 @@ function handleBack(){
 window.addEventListener('resize',resize);resize();
 
 // ── Fullscreen: request on first user gesture ────────────────────────────────
+// Re-fullscreen banner when exiting fullscreen
+let _fsExited=false;
+document.addEventListener('fullscreenchange',()=>{
+  if(!document.fullscreenElement){_fsExited=true;}
+  else{_fsExited=false;}
+});
+document.addEventListener('webkitfullscreenchange',()=>{
+  if(!document.webkitFullscreenElement){_fsExited=true;}
+  else{_fsExited=false;}
+});
+
 let _fsRequested=false;
 function requestFS(){
   if(_fsRequested)return;
@@ -603,8 +614,9 @@ function requestFS(){
 canvas.addEventListener('click',e=>{SFX.resume();requestFS();handlePtr(e);});
 // ── Swipe detection for char select ──────────────
 let _swipeX=null,_swipeY=null;
+let _charLastSel=-1,_charSelT=0; // two-tap confirm
 canvas.addEventListener('touchstart',e=>{
-  SFX.resume();requestFS();
+  SFX.resume();if(_fsExited){_fsRequested=false;}requestFS();
   if(scr==='INTRO'){toMode();return;}
   if(scr==='STGCLEAR'){initFight();return;}
   if(scr==='MATCHOVER'){_goAfterMatch();return;}
@@ -668,7 +680,11 @@ function click2(x,y){
   }
   if(scr==='CHARSEL'){
     const cw2=130,sx2=(W-6*cw2)/2;
-    for(let i=0;i<6;i++){if(ib(x,y,sx2+i*cw2+3,74,cw2-6,148)){charCur=i;confirmChar();return;}}
+    for(let i=0;i<6;i++){if(ib(x,y,sx2+i*cw2+3,74,cw2-6,148)){
+      const now=Date.now();
+      if(i===_charLastSel&&now-_charSelT<1200){confirmChar();return;}
+      charCur=i;_charLastSel=i;_charSelT=now;return;
+    }}
     return;
   }
   if(scr==='MPLOBY'){
@@ -687,7 +703,7 @@ function click2(x,y){
         }
       }
       // Ready button
-      if(ib(x,y,W/2-115,H-62,230,44))toggleReady();
+      if(ib(x,y,W/2-140,H-70,280,60))toggleReady();
     }
     // Copy button (host only)
     if(isHost&&myPeerId&&ib(x,y,W-152,100,114,44)){
@@ -2097,7 +2113,7 @@ function drawMPLobby(){
   ctx.textAlign='right';
   ctx.fillText(oppR?'✅ READY':'ΟΧΙ ΕΤΟΙΜΟΣ',sx2+6*cw2,readyY);
 
-  _btn(W/2-115,H-62,230,44,myR?'✅ READY!':'READY',myR?'#0E4A28':'#1A3060',myR?'#2ECC71':'#1A7FC4');
+  _btn(W/2-140,H-70,280,60,myR?'✅ READY!':'READY',myR?'#0E4A28':'#1A3060',myR?'#2ECC71':'#1A7FC4');
 
   // Footer
   ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';
